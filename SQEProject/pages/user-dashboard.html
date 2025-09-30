@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - EventHub</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-calendar-alt"></i>
+                <a href="../index.html" style="color: inherit; text-decoration: none;">EventHub</a>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="events.html" class="nav-link">Events</a>
+                <a href="about.html" class="nav-link">About</a>
+                <a href="contact.html" class="nav-link">Contact</a>
+                <div class="nav-auth">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span>Welcome, John!</span>
+                        <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard" class="active" onclick="showSection('dashboard')">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a></li>
+                <li><a href="#my-events" onclick="showSection('my-events')">
+                    <i class="fas fa-calendar-check"></i> My Events
+                </a></li>
+                <li><a href="#booking-history" onclick="showSection('booking-history')">
+                    <i class="fas fa-history"></i> Booking History
+                </a></li>
+                <li><a href="#reminders" onclick="showSection('reminders')">
+                    <i class="fas fa-bell"></i> Reminders
+                </a></li>
+                <li><a href="#profile" onclick="showSection('profile')">
+                    <i class="fas fa-user"></i> Profile
+                </a></li>
+                <li><a href="#settings" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i> Settings
+                </a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Dashboard Overview -->
+            <div id="dashboard-section" class="dashboard-section active">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p>Welcome back, John! Here's your event overview.</p>
+                    </div>
+                    <a href="events.html" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Book New Event
+                    </a>
+                </div>
+
+                <div id="dashboardContent">
+                    <!-- Content will be loaded by JavaScript -->
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="dashboard-section">
+                    <h2>Quick Actions</h2>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <h3>Browse Events</h3>
+                            <p>Discover amazing events happening near you</p>
+                            <a href="events.html" class="btn btn-primary">Browse Now</a>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <h3>My Favorites</h3>
+                            <p>View your saved and favorite events</p>
+                            <button class="btn btn-primary" onclick="showSection('favorites')">View Favorites</button>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-share-alt"></i>
+                            </div>
+                            <h3>Refer Friends</h3>
+                            <p>Invite friends and earn rewards</p>
+                            <button class="btn btn-primary" onclick="openModal('referralModal')">Invite Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Events Section -->
+            <div id="my-events-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>My Events</h1>
+                        <p>Events you have booked</p>
+                    </div>
+                </div>
+
+                <div class="events-grid" id="myEventsGrid">
+                    <!-- Events will be loaded by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Booking History Section -->
+            <div id="booking-history-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Booking History</h1>
+                        <p>All your past and present event bookings</p>
+                    </div>
+                    <button class="btn btn-outline" onclick="downloadBookingHistory()">
+                        <i class="fas fa-download"></i> Download Report
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="table" id="bookingHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Date</th>
+                                <th>Booking Date</th>
+                                <th>Tickets</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Content will be loaded by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reminders Section -->
+            <div id="reminders-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Event Reminders</h1>
+                        <p>Stay updated with your upcoming events</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openModal('addReminderModal')">
+                        <i class="fas fa-plus"></i> Add Reminder
+                    </button>
+                </div>
+
+                <div class="reminders-list" id="remindersList">
+                    <div class="card">
+                        <div class="card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h4>Tech Conference 2025</h4>
+                                    <p><i class="fas fa-clock"></i> Reminder: 1 day before event</p>
+                                    <p><i class="fas fa-calendar"></i> Event Date: November 15, 2025</p>
+                                </div>
+                                <div>
+                                    <span class="badge badge-info">Active</span>
+                                    <button class="btn btn-small btn-outline" onclick="editReminder(1)">Edit</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h4>Startup Pitch Night</h4>
+                                    <p><i class="fas fa-clock"></i> Reminder: 2 hours before event</p>
+                                    <p><i class="fas fa-calendar"></i> Event Date: October 28, 2025</p>
+                                </div>
+                                <div>
+                                    <span class="badge badge-info">Active</span>
+                                    <button class="btn btn-small btn-outline" onclick="editReminder(3)">Edit</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profile-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>My Profile</h1>
+                        <p>Manage your personal information</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <form id="profileForm">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" name="fullName" value="John Doe" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" class="form-control" name="email" value="john@example.com" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" name="phone" value="+1 (555) 123-4567" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" name="birthDate" value="1990-01-15">
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">City</label>
+                                <input type="text" class="form-control" name="city" value="New York">
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Interests</label>
+                                <select class="form-control" name="interests" multiple>
+                                    <option value="technology" selected>Technology</option>
+                                    <option value="music">Music</option>
+                                    <option value="business" selected>Business</option>
+                                    <option value="art">Art</option>
+                                    <option value="sports">Sports</option>
+                                    <option value="food">Food & Wine</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-control" name="bio" rows="4" placeholder="Tell us about yourself...">Event enthusiast and tech professional who loves discovering new experiences and networking opportunities.</textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                            <button type="button" class="btn btn-outline">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Settings</h1>
+                        <p>Manage your account preferences</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Notification Preferences</h3>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="emailNotifications" checked>
+                            <label for="emailNotifications">Email notifications for new events</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="eventReminders" checked>
+                            <label for="eventReminders">Event reminders</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="newsletterSubscription" checked>
+                            <label for="newsletterSubscription">Weekly newsletter</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="smsNotifications">
+                            <label for="smsNotifications">SMS notifications</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Privacy Settings</h3>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="profileVisibility" checked>
+                            <label for="profileVisibility">Make my profile visible to other users</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="dataSharing">
+                            <label for="dataSharing">Share anonymized data for analytics</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Account Actions</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="changePassword()">Change Password</button>
+                        <button class="btn btn-outline" onclick="downloadData()">Download My Data</button>
+                        <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Reminder Modal -->
+    <div id="addReminderModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('addReminderModal')">&times;</button>
+            <h2>Add Event Reminder</h2>
+            
+            <form id="addReminderForm">
+                <div class="form-group">
+                    <label class="form-label">Select Event</label>
+                    <select class="form-control" name="eventId" required>
+                        <option value="">Choose an event</option>
+                        <option value="1">Tech Conference 2025</option>
+                        <option value="3">Startup Pitch Night</option>
+                    </select>
+                    <div class="form-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Reminder Time</label>
+                    <select class="form-control" name="reminderTime" required>
+                        <option value="">Select when to remind</option>
+                        <option value="1-hour">1 hour before</option>
+                        <option value="2-hours">2 hours before</option>
+                        <option value="1-day">1 day before</option>
+                        <option value="2-days">2 days before</option>
+                        <option value="1-week">1 week before</option>
+                    </select>
+                    <div class="form-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Reminder Method</label>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="reminderEmail" name="reminderMethod" value="email" checked>
+                        <label for="reminderEmail">Email</label>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="reminderSMS" name="reminderMethod" value="sms">
+                        <label for="reminderSMS">SMS</label>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('addReminderModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Reminder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Referral Modal -->
+    <div id="referralModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('referralModal')">&times;</button>
+            <h2>Refer Friends</h2>
+            <p>Share EventHub with your friends and earn rewards!</p>
+            
+            <div class="form-group">
+                <label class="form-label">Your Referral Code</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" class="form-control" value="JOHN2025" readonly>
+                    <button class="btn btn-outline" onclick="copyReferralCode()">Copy</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Share via Email</label>
+                <input type="email" class="form-control" placeholder="Friend's email address">
+                <button class="btn btn-primary mt-2" onclick="sendReferralEmail()">Send Invitation</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Share on Social Media</label>
+                <div style="display: flex; gap: 15px;">
+                    <button class="btn btn-outline"><i class="fab fa-facebook"></i> Facebook</button>
+                    <button class="btn btn-outline"><i class="fab fa-twitter"></i> Twitter</button>
+                    <button class="btn btn-outline"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        // Dashboard section management
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from all sidebar links
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.add('active');
+            
+            // Add active class to clicked link
+            event.target.classList.add('active');
+            
+            // Load section-specific content
+            switch(sectionName) {
+                case 'my-events':
+                    loadMyEvents();
+                    break;
+                case 'booking-history':
+                    loadBookingHistory();
+                    break;
+            }
+        }
+
+        function loadMyEvents() {
+            const user = window.EventHub.sampleUsers[0];
+            const myEvents = window.EventHub.sampleEvents.filter(event => user.bookedEvents.includes(event.id));
+            const myEventsGrid = document.getElementById('myEventsGrid');
+            
+            if (myEvents.length > 0) {
+                myEventsGrid.innerHTML = myEvents.map(event => window.EventHub.createEventCard(event)).join('');
+            } else {
+                myEventsGrid.innerHTML = `
+                    <div class="text-center" style="grid-column: 1 / -1; padding: 40px;">
+                        <i class="fas fa-calendar-times" style="font-size: 4rem; color: #ccc; margin-bottom: 20px;"></i>
+                        <h3>No Events Booked</h3>
+                        <p>You haven't booked any events yet. Start exploring!</p>
+                        <a href="events.html" class="btn btn-primary">Browse Events</a>
+                    </div>
+                `;
+            }
+        }
+
+        function loadBookingHistory() {
+            const user = window.EventHub.sampleUsers[0];
+            const tbody = document.querySelector('#bookingHistoryTable tbody');
+            
+            tbody.innerHTML = user.bookingHistory.map(booking => {
+                const event = window.EventHub.sampleEvents.find(e => e.id === booking.eventId);
+                return `
+                    <tr>
+                        <td>${event ? event.title : 'Unknown Event'}</td>
+                        <td>${event ? new Date(event.date).toLocaleDateString() : 'N/A'}</td>
+                        <td>${new Date(booking.bookingDate).toLocaleDateString()}</td>
+                        <td>${booking.tickets}</td>
+                        <td>$${event ? (event.price * booking.tickets) : '0'}</td>
+                        <td><span class="badge badge-success">${booking.status}</span></td>
+                        <td>
+                            <button class="btn btn-small btn-outline" onclick="viewTicket(${booking.eventId})">View Ticket</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Utility functions
+        function logout() {
+            showAlert('Logged out successfully!', 'success');
+            setTimeout(() => {
+                window.location.href = '../index.html';
+            }, 1500);
+        }
+
+        function downloadBookingHistory() {
+            showAlert('Booking history report downloaded!', 'success');
+        }
+
+        function changePassword() {
+            showAlert('Password change feature would open here', 'info');
+        }
+
+        function downloadData() {
+            showAlert('Your data export will be emailed to you within 24 hours', 'info');
+        }
+
+        function deleteAccount() {
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                showAlert('Account deletion request submitted', 'warning');
+            }
+        }
+
+        function copyReferralCode() {
+            navigator.clipboard.writeText('JOHN2025');
+            showAlert('Referral code copied to clipboard!', 'success');
+        }
+
+        function sendReferralEmail() {
+            showAlert('Referral invitation sent!', 'success');
+        }
+
+        function viewTicket(eventId) {
+            showAlert('Ticket viewer would open here', 'info');
+        }
+
+        function editReminder(eventId) {
+            showAlert('Reminder editor would open here', 'info');
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserDashboard();
+            
+            // Handle add reminder form
+            document.getElementById('addReminderForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                showAlert('Reminder added successfully!', 'success');
+                closeModal('addReminderModal');
+            });
+            
+            // Handle profile form
+            document.getElementById('profileForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                showAlert('Profile updated successfully!', 'success');
+            });
+        });
+    </script>
+</body>
+</html>
