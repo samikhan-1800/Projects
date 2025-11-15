@@ -1,124 +1,70 @@
-// Sample Data
-const sampleEvents = [
-    {
-        id: 1,
-        title: "Tech Conference 2025",
-        date: "2025-11-15",
-        time: "09:00 AM",
-        venue: "Tech Center Downtown",
-        price: 299,
-        capacity: 500,
-        available: 150,
-        category: "Technology",
-        description: "Join industry leaders for the biggest tech conference of the year. Featuring keynotes, workshops, and networking opportunities.",
-        organizer: "TechEvents Inc.",
-        image: "fas fa-laptop-code"
-    },
-    {
-        id: 2,
-        title: "Music Festival Summer",
-        date: "2025-12-20",
-        time: "06:00 PM",
-        venue: "Central Park Amphitheater",
-        price: 89,
-        capacity: 2000,
-        available: 800,
-        category: "Music",
-        description: "An unforgettable night of music featuring top artists from around the world. Food trucks and activities for the whole family.",
-        organizer: "Summer Sounds",
-        image: "fas fa-music"
-    },
-    {
-        id: 3,
-        title: "Startup Pitch Night",
-        date: "2025-10-28",
-        time: "07:00 PM",
-        venue: "Innovation Hub",
-        price: 49,
-        capacity: 200,
-        available: 50,
-        category: "Business",
-        description: "Watch promising startups pitch their ideas to investors. Great networking opportunity for entrepreneurs and investors.",
-        organizer: "Startup Community",
-        image: "fas fa-lightbulb"
-    },
-    {
-        id: 4,
-        title: "Art Gallery Opening",
-        date: "2025-11-05",
-        time: "05:30 PM",
-        venue: "Modern Art Museum",
-        price: 35,
-        capacity: 150,
-        available: 75,
-        category: "Art",
-        description: "Exclusive opening of our contemporary art exhibition featuring local and international artists.",
-        organizer: "Modern Art Museum",
-        image: "fas fa-palette"
-    },
-    {
-        id: 5,
-        title: "Food & Wine Festival",
-        date: "2025-11-30",
-        time: "12:00 PM",
-        venue: "Riverside Gardens",
-        price: 125,
-        capacity: 800,
-        available: 300,
-        category: "Food",
-        description: "Taste exquisite cuisine from top chefs and sample premium wines from around the world.",
-        organizer: "Culinary Events",
-        image: "fas fa-wine-glass-alt"
-    },
-    {
-        id: 6,
-        title: "Marathon Championship",
-        date: "2025-12-01",
-        time: "06:00 AM",
-        venue: "City Sports Complex",
-        price: 75,
-        capacity: 1000,
-        available: 400,
-        category: "Sports",
-        description: "Annual marathon championship with various categories for runners of all levels. Medals and prizes for winners.",
-        organizer: "City Sports Authority",
-        image: "fas fa-running"
-    }
-];
+// API Configuration
+const API_BASE_URL = '/api'; // Configure this to match your backend API
 
-const sampleUsers = [
-    {
-        id: 1,
-        name: "John Doe",
-        email: "john@example.com",
-        role: "user",
-        status: "active",
-        joinDate: "2025-01-15",
-        bookedEvents: [1, 3],
-        bookingHistory: [
-            { eventId: 1, bookingDate: "2025-09-15", status: "confirmed", tickets: 2 },
-            { eventId: 3, bookingDate: "2025-09-20", status: "confirmed", tickets: 1 }
-        ]
-    },
-    {
-        id: 2,
-        name: "Jane Smith",
-        email: "jane@example.com",
-        role: "organizer",
-        status: "active",
-        joinDate: "2025-02-10",
-        eventsCreated: [1, 4],
-        totalRevenue: 15750
-    },
-    {
-        id: 3,
-        name: "Mike Johnson",
-        email: "mike@example.com",
-        role: "admin",
-        status: "active",
-        joinDate: "2025-01-01"
+// Global data stores
+let events = [];
+let currentUser = null;
+let userBookings = [];
+
+// API Helper Functions
+async function apiRequest(endpoint, options = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const token = localStorage.getItem('authToken');
+    
+    const config = {
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+            ...options.headers
+        },
+        ...options
+    };
+    
+    try {
+        const response = await fetch(url, config);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('API request failed:', error);
+        showAlert('Network error. Please try again.', 'danger');
+        throw error;
     }
-];
+}
+
+// Data fetching functions
+async function fetchEvents() {
+    try {
+        events = await apiRequest('/events');
+        return events;
+    } catch (error) {
+        console.error('Failed to fetch events:', error);
+        return [];
+    }
+}
+
+async function fetchCurrentUser() {
+    try {
+        currentUser = await apiRequest('/auth/me');
+        return currentUser;
+    } catch (error) {
+        console.error('Failed to fetch current user:', error);
+        return null;
+    }
+}
+
+async function fetchUserBookings() {
+    try {
+        userBookings = await apiRequest('/bookings/my');
+        return userBookings;
+    } catch (error) {
+        console.error('Failed to fetch user bookings:', error);
+        return [];
+    }
+}
 
 // DOM Elements
 const navToggle = document.getElementById('navToggle');
@@ -140,26 +86,42 @@ document.addEventListener('click', (e) => {
 });
 
 // Load Featured Events on Home Page
-function loadFeaturedEvents() {
+async function loadFeaturedEvents() {
     if (featuredEventsContainer) {
-        const featuredEvents = sampleEvents.slice(0, 3);
-        featuredEventsContainer.innerHTML = featuredEvents.map(event => createEventCard(event, true)).join('');
+        try {
+            const allEvents = await fetchEvents();
+            const featuredEvents = allEvents.filter(event => event.isFeatured).slice(0, 3);
+            featuredEventsContainer.innerHTML = featuredEvents.map(event => createEventCard(event, true)).join('');
+        } catch (error) {
+            console.error('Failed to load featured events:', error);
+            featuredEventsContainer.innerHTML = '<p class="text-center">Unable to load featured events. Please try again later.</p>';
+        }
     }
 }
 
 // Create Event Card HTML
 function createEventCard(event, isFeatured = false) {
-    const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
+    const formattedDate = new Date(event.startDate).toLocaleDateString('en-US', {
         weekday: 'short',
         year: 'numeric',
         month: 'short',
         day: 'numeric'
     });
 
+    const formattedTime = new Date(event.startDate).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const availableSeats = event.capacity - (event.bookingCount || 0);
+    const eventImage = event.featuredImageUrl ? 
+        `<img src="${event.featuredImageUrl}" alt="${event.title}" />` : 
+        `<i class="fas fa-calendar-alt"></i>`;
+
     return `
         <div class="event-card">
             <div class="event-image">
-                <i class="${event.image}"></i>
+                ${eventImage}
             </div>
             <div class="event-content">
                 <h3 class="event-title">${event.title}</h3>
@@ -170,23 +132,27 @@ function createEventCard(event, isFeatured = false) {
                     </div>
                     <div class="event-detail">
                         <i class="fas fa-clock"></i>
-                        <span>${event.time}</span>
+                        <span>${formattedTime}</span>
                     </div>
                     <div class="event-detail">
                         <i class="fas fa-map-marker-alt"></i>
-                        <span>${event.venue}</span>
+                        <span>${event.isOnline ? 'Online Event' : event.venueName}</span>
                     </div>
                     <div class="event-detail">
                         <i class="fas fa-users"></i>
-                        <span>${event.available}/${event.capacity} available</span>
+                        <span>${availableSeats}/${event.capacity} available</span>
                     </div>
                 </div>
-                <div class="event-price">$${event.price}</div>
+                <div class="event-price">
+                    ${event.isFree ? 'Free' : `$${event.price}`}
+                </div>
                 <div class="card-footer">
                     ${isFeatured ? 
-                        `<a href="pages/event-detail.html?id=${event.id}" class="btn btn-primary">View Details</a>` :
-                        `<a href="pages/event-detail.html?id=${event.id}" class="btn btn-outline btn-small">View Details</a>
-                         <button onclick="bookEvent(${event.id})" class="btn btn-primary">Book Now</button>`
+                        `<a href="pages/event-detail.html?id=${event.eventId}" class="btn btn-primary">View Details</a>` :
+                        `<a href="pages/event-detail.html?id=${event.eventId}" class="btn btn-outline btn-small">View Details</a>
+                         <button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
+                             ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
+                         </button>`
                     }
                 </div>
             </div>
@@ -279,32 +245,40 @@ function isValidEmail(email) {
 }
 
 // Event Booking
-function bookEvent(eventId) {
-    const event = sampleEvents.find(e => e.id === eventId);
-    if (!event) return;
-
-    if (event.available <= 0) {
-        showAlert('Sorry, this event is sold out!', 'danger');
+async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}) {
+    if (!currentUser) {
+        showAlert('Please log in to book events.', 'warning');
+        window.location.href = 'pages/login.html';
         return;
     }
 
-    // Simulate booking process
-    showAlert(`Successfully booked "${event.title}"! Check your email for confirmation.`, 'success');
-    
-    // Update available seats
-    event.available -= 1;
-    
-    // Update UI if on events page
-    const eventCards = document.querySelectorAll('.event-card');
-    eventCards.forEach(card => {
-        const titleElement = card.querySelector('.event-title');
-        if (titleElement && titleElement.textContent === event.title) {
-            const availableElement = card.querySelector('.event-detail:nth-child(4) span');
-            if (availableElement) {
-                availableElement.textContent = `${event.available}/${event.capacity} available`;
-            }
+    try {
+        const bookingData = {
+            eventId,
+            quantity: ticketQuantity,
+            attendeeInfo
+        };
+
+        const result = await apiRequest('/bookings', {
+            method: 'POST',
+            body: JSON.stringify(bookingData)
+        });
+
+        showAlert(`Successfully booked event! Booking reference: ${result.bookingReference}`, 'success');
+        
+        // Refresh events data
+        await fetchEvents();
+        
+        // Update UI if on events page
+        if (window.location.pathname.includes('events.html')) {
+            loadEvents();
         }
-    });
+        
+        return result;
+    } catch (error) {
+        console.error('Booking failed:', error);
+        showAlert('Booking failed. Please try again.', 'danger');
+    }
 }
 
 // Alert System
@@ -347,13 +321,13 @@ function closeAlert(alertId) {
 
 // Search and Filter Functions
 function filterEvents(searchTerm = '', category = '', priceRange = '') {
-    let filteredEvents = [...sampleEvents];
+    let filteredEvents = [...events];
 
-    // Search by title or venue
+    // Search by title, venue name, or description
     if (searchTerm) {
         filteredEvents = filteredEvents.filter(event => 
             event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            event.venue.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            event.venueName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.description.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }
@@ -361,7 +335,7 @@ function filterEvents(searchTerm = '', category = '', priceRange = '') {
     // Filter by category
     if (category && category !== 'all') {
         filteredEvents = filteredEvents.filter(event => 
-            event.category.toLowerCase() === category.toLowerCase()
+            event.categoryName && event.categoryName.toLowerCase() === category.toLowerCase()
         );
     }
 
@@ -369,10 +343,11 @@ function filterEvents(searchTerm = '', category = '', priceRange = '') {
     if (priceRange) {
         const [min, max] = priceRange.split('-').map(Number);
         filteredEvents = filteredEvents.filter(event => {
+            const eventPrice = event.price || 0;
             if (max) {
-                return event.price >= min && event.price <= max;
+                return eventPrice >= min && eventPrice <= max;
             } else {
-                return event.price >= min;
+                return eventPrice >= min;
             }
         });
     }
@@ -381,23 +356,40 @@ function filterEvents(searchTerm = '', category = '', priceRange = '') {
 }
 
 // Load events on events page
-function loadEvents(events = sampleEvents) {
+async function loadEvents(filteredEvents = null) {
     const eventsContainer = document.getElementById('eventsContainer');
     if (eventsContainer) {
-        eventsContainer.innerHTML = events.map(event => createEventCard(event)).join('');
+        try {
+            const eventsToShow = filteredEvents || await fetchEvents();
+            if (eventsToShow.length === 0) {
+                eventsContainer.innerHTML = '<p class="text-center">No events found.</p>';
+            } else {
+                eventsContainer.innerHTML = eventsToShow.map(event => createEventCard(event)).join('');
+            }
+        } catch (error) {
+            console.error('Failed to load events:', error);
+            eventsContainer.innerHTML = '<p class="text-center">Unable to load events. Please try again later.</p>';
+        }
     }
 }
 
 // Load event details
-function loadEventDetail() {
+async function loadEventDetail() {
     const urlParams = new URLSearchParams(window.location.search);
-    const eventId = parseInt(urlParams.get('id'));
-    const event = sampleEvents.find(e => e.id === eventId);
-
-    if (!event) {
-        document.body.innerHTML = '<div class="container"><h1>Event not found</h1></div>';
+    const eventId = urlParams.get('id');
+    
+    if (!eventId) {
+        document.body.innerHTML = '<div class="container"><h1>Event ID not provided</h1></div>';
         return;
     }
+
+    try {
+        const event = await apiRequest(`/events/${eventId}`);
+        
+        if (!event) {
+            document.body.innerHTML = '<div class="container"><h1>Event not found</h1></div>';
+            return;
+        }
 
     const eventDetailContainer = document.getElementById('eventDetail');
     if (eventDetailContainer) {
@@ -542,79 +534,102 @@ function loadEventDetail() {
 }
 
 // Dashboard Functions
-function loadUserDashboard() {
-    const user = sampleUsers[0]; // Current user
+async function loadUserDashboard() {
+    if (!currentUser) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
     const dashboardContent = document.getElementById('dashboardContent');
     
     if (dashboardContent) {
-        const bookedEvents = sampleEvents.filter(event => user.bookedEvents.includes(event.id));
+        try {
+            const bookings = await fetchUserBookings();
+            const bookedEvents = await Promise.all(
+                bookings.map(booking => apiRequest(`/events/${booking.eventId}`))
+            );
         
-        dashboardContent.innerHTML = `
-            <div class="dashboard-stats">
-                <div class="stat-card">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-ticket-alt"></i>
-                    </div>
-                    <div class="stat-card-value">${user.bookedEvents.length}</div>
-                    <div class="stat-card-label">Booked Events</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <div class="stat-card-value">${user.bookingHistory.length}</div>
-                    <div class="stat-card-label">Total Bookings</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-bell"></i>
-                    </div>
-                    <div class="stat-card-value">3</div>
-                    <div class="stat-card-label">Reminders</div>
-                </div>
-            </div>
+            const upcomingEvents = bookedEvents.filter(event => new Date(event.startDate) > new Date());
+            const notifications = await apiRequest('/notifications/unread').catch(() => []);
             
-            <div class="dashboard-section">
-                <h2>Your Upcoming Events</h2>
-                <div class="events-grid">
-                    ${bookedEvents.map(event => createEventCard(event)).join('')}
+            dashboardContent.innerHTML = `
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-card-icon">
+                            <i class="fas fa-ticket-alt"></i>
+                        </div>
+                        <div class="stat-card-value">${upcomingEvents.length}</div>
+                        <div class="stat-card-label">Upcoming Events</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="stat-card-value">${bookings.length}</div>
+                        <div class="stat-card-label">Total Bookings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="stat-card-value">${notifications.length}</div>
+                        <div class="stat-card-label">Notifications</div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="dashboard-section">
-                <h2>Booking History</h2>
-                <div class="table-container">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Event</th>
-                                <th>Booking Date</th>
-                                <th>Tickets</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${user.bookingHistory.map(booking => {
-                                const event = sampleEvents.find(e => e.id === booking.eventId);
-                                return `
-                                    <tr>
-                                        <td>${event ? event.title : 'Unknown Event'}</td>
-                                        <td>${new Date(booking.bookingDate).toLocaleDateString()}</td>
-                                        <td>${booking.tickets}</td>
-                                        <td><span class="badge badge-success">${booking.status}</span></td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                
+                <div class="dashboard-section">
+                    <h2>Your Upcoming Events</h2>
+                    <div class="events-grid">
+                        ${upcomingEvents.length > 0 ? 
+                            upcomingEvents.map(event => createEventCard(event)).join('') :
+                            '<p class="text-center">No upcoming events</p>'
+                        }
+                    </div>
                 </div>
-            </div>
-        `;
+                
+                <div class="dashboard-section">
+                    <h2>Booking History</h2>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Booking Date</th>
+                                    <th>Tickets</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bookings.length > 0 ? bookings.map(booking => {
+                                    const event = bookedEvents.find(e => e.eventId === booking.eventId);
+                                    return `
+                                        <tr>
+                                            <td>${event ? event.title : 'Unknown Event'}</td>
+                                            <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
+                                            <td>${booking.quantity}</td>
+                                            <td><span class="badge badge-${booking.status.toLowerCase() === 'confirmed' ? 'success' : 'warning'}">${booking.status}</span></td>
+                                            <td>$${booking.finalAmount}</td>
+                                        </tr>
+                                    `;
+                                }).join('') : '<tr><td colspan="5" class="text-center">No bookings found</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Failed to load dashboard:', error);
+            dashboardContent.innerHTML = '<p class="text-center">Unable to load dashboard. Please try again later.</p>';
+        }
     }
 }
 
 // Initialize page-specific functions
 document.addEventListener('DOMContentLoaded', () => {
+    // Check authentication status
+    checkAuth();
+    
     // Load featured events on home page
     loadFeaturedEvents();
     
@@ -680,48 +695,118 @@ document.addEventListener('DOMContentLoaded', () => {
             if (validateForm(form.id)) {
                 const formType = form.id;
                 
-                switch (formType) {
-                    case 'loginForm':
-                        showAlert('Login successful! Redirecting...', 'success');
-                        setTimeout(() => {
-                            window.location.href = '../pages/user-dashboard.html';
-                        }, 2000);
-                        break;
-                        
-                    case 'registerForm':
-                        showAlert('Registration successful! Please check your email to verify your account.', 'success');
-                        setTimeout(() => {
-                            window.location.href = 'login.html';
-                        }, 2000);
-                        break;
-                        
-                    case 'contactForm':
-                        showAlert('Thank you for your message! We will get back to you soon.', 'success');
-                        form.reset();
-                        break;
-                        
-                    case 'createEventForm':
-                        showAlert('Event created successfully! It will be reviewed by our team.', 'success');
-                        form.reset();
-                        break;
-                        
-                    default:
-                        showAlert('Form submitted successfully!', 'success');
-                }
+                await handleFormSubmission(formType, form);
             }
         });
     });
 });
 
+// Handle form submissions
+async function handleFormSubmission(formType, form) {
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        switch (formType) {
+            case 'loginForm':
+                const loginResult = await apiRequest('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: data.email,
+                        password: data.password
+                    })
+                });
+                
+                localStorage.setItem('authToken', loginResult.token);
+                currentUser = loginResult.user;
+                showAlert('Login successful! Redirecting...', 'success');
+                
+                setTimeout(() => {
+                    const redirectUrl = loginResult.user.role === 'admin' ? 
+                        '../pages/admin-dashboard.html' : 
+                        loginResult.user.role === 'organizer' ? 
+                        '../pages/organizer-dashboard.html' : 
+                        '../pages/user-dashboard.html';
+                    window.location.href = redirectUrl;
+                }, 2000);
+                break;
+                
+            case 'registerForm':
+                await apiRequest('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                
+                showAlert('Registration successful! Please check your email to verify your account.', 'success');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                break;
+                
+            case 'contactForm':
+                await apiRequest('/contact', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                
+                showAlert('Thank you for your message! We will get back to you soon.', 'success');
+                form.reset();
+                break;
+                
+            case 'createEventForm':
+                await apiRequest('/events', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                
+                showAlert('Event created successfully! It will be reviewed by our team.', 'success');
+                form.reset();
+                break;
+                
+            case 'bookingForm':
+                const eventId = new URLSearchParams(window.location.search).get('id');
+                await bookEvent(eventId, parseInt(data.tickets), {
+                    name: data.fullName,
+                    email: data.email,
+                    phone: data.phone
+                });
+                break;
+                
+            default:
+                showAlert('Form submitted successfully!', 'success');
+        }
+    } catch (error) {
+        console.error('Form submission failed:', error);
+        showAlert(error.message || 'Submission failed. Please try again.', 'danger');
+    }
+}
+
+// Authentication check
+function checkAuth() {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        fetchCurrentUser();
+    }
+}
+
+// Logout function
+function logout() {
+    localStorage.removeItem('authToken');
+    currentUser = null;
+    window.location.href = '../index.html';
+}
+
 // Export functions for use in other files
 window.EventHub = {
-    sampleEvents,
-    sampleUsers,
     createEventCard,
     filterEvents,
     bookEvent,
     showAlert,
     validateForm,
     openModal,
-    closeModal
+    closeModal,
+    fetchEvents,
+    fetchCurrentUser,
+    logout,
+    checkAuth
 };

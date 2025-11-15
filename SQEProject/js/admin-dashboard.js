@@ -1,103 +1,58 @@
 // Admin Dashboard JavaScript
 // Extends main EventHub functionality with admin-specific features
 
-// Sample admin data (would come from API in production)
-const adminData = {
-    stats: {
-        totalUsers: 1247,
-        totalEvents: 89,
-        totalBookings: 5432,
-        totalRevenue: 127890,
-        growth: {
-            users: 12,
-            events: 8,
-            bookings: 23,
-            revenue: 18
-        }
-    },
-    recentActivities: [
-        {
-            id: 1,
-            type: 'user_registration',
-            message: 'New user registered',
-            details: 'john.doe@email.com',
-            timestamp: '2 minutes ago',
-            icon: 'fas fa-user-plus',
-            color: '#28a745'
-        },
-        {
-            id: 2,
-            type: 'event_submission',
-            message: 'New event submitted',
-            details: 'Digital Marketing Summit',
-            timestamp: '15 minutes ago',
-            icon: 'fas fa-calendar-plus',
-            color: '#17a2b8'
-        },
-        {
-            id: 3,
-            type: 'support_ticket',
-            message: 'Support ticket created',
-            details: 'Payment issue',
-            timestamp: '1 hour ago',
-            icon: 'fas fa-exclamation-triangle',
-            color: '#ffc107'
-        }
-    ],
-    users: [
-        {
-            id: 1001,
-            name: 'John Doe',
-            email: 'john@example.com',
-            role: 'user',
-            status: 'active',
-            joinDate: '2025-01-15',
-            eventsBooked: 3
-        },
-        {
-            id: 1002,
-            name: 'Jane Smith',
-            email: 'jane@techevents.com',
-            role: 'organizer',
-            status: 'active',
-            joinDate: '2025-02-10',
-            eventsCreated: 12
-        },
-        {
-            id: 1003,
-            name: 'Mike Johnson',
-            email: 'mike@example.com',
-            role: 'admin',
-            status: 'active',
-            joinDate: '2025-01-01',
-            eventsBooked: 0
-        }
-    ],
-    events: [
-        {
-            id: 1,
-            title: 'Tech Conference 2025',
-            organizer: 'TechEvents Inc.',
-            date: '2025-11-15',
-            category: 'Technology',
-            capacity: 500,
-            booked: 350,
-            revenue: 104650,
-            status: 'approved'
-        },
-        {
-            id: 7,
-            title: 'Digital Marketing Summit',
-            organizer: 'Marketing Pro LLC',
-            date: '2025-12-01',
-            category: 'Business',
-            capacity: 200,
-            booked: 0,
-            revenue: 0,
-            status: 'pending'
-        }
-    ]
-};
+// Admin data stores
+let adminStats = {};
+let allUsers = [];
+let allEvents = [];
+let recentActivities = [];
+
+// Admin API functions
+async function fetchAdminStats() {
+    try {
+        adminStats = await EventHub.apiRequest('/admin/stats');
+        return adminStats;
+    } catch (error) {
+        console.error('Failed to fetch admin stats:', error);
+        return {
+            totalUsers: 0,
+            totalEvents: 0,
+            totalBookings: 0,
+            totalRevenue: 0,
+            growth: { users: 0, events: 0, bookings: 0, revenue: 0 }
+        };
+    }
+}
+
+async function fetchAllUsers() {
+    try {
+        allUsers = await EventHub.apiRequest('/admin/users');
+        return allUsers;
+    } catch (error) {
+        console.error('Failed to fetch users:', error);
+        return [];
+    }
+}
+
+async function fetchAllEvents() {
+    try {
+        allEvents = await EventHub.apiRequest('/admin/events');
+        return allEvents;
+    } catch (error) {
+        console.error('Failed to fetch events:', error);
+        return [];
+    }
+}
+
+async function fetchRecentActivities() {
+    try {
+        recentActivities = await EventHub.apiRequest('/admin/activities');
+        return recentActivities;
+    } catch (error) {
+        console.error('Failed to fetch activities:', error);
+        return [];
+    }
+}
 
 // Dashboard section management
 let currentSection = 'overview';
@@ -145,95 +100,176 @@ function showSection(sectionName) {
 }
 
 // Load dashboard overview data
-function loadDashboardOverview() {
-    // Update stats
-    document.getElementById('totalUsers').textContent = adminData.stats.totalUsers.toLocaleString();
-    document.getElementById('totalEvents').textContent = adminData.stats.totalEvents.toLocaleString();
-    document.getElementById('totalBookings').textContent = adminData.stats.totalBookings.toLocaleString();
-    document.getElementById('totalRevenue').textContent = `$${adminData.stats.totalRevenue.toLocaleString()}`;
-    
-    // Load recent activities
-    loadRecentActivities();
-    
-    // Initialize charts if Chart.js is available
-    if (typeof Chart !== 'undefined') {
-        initializeBookingsChart();
+async function loadDashboardOverview() {
+    try {
+        const stats = await fetchAdminStats();
+        
+        // Update stats
+        document.getElementById('totalUsers').textContent = stats.totalUsers.toLocaleString();
+        document.getElementById('totalEvents').textContent = stats.totalEvents.toLocaleString();
+        document.getElementById('totalBookings').textContent = stats.totalBookings.toLocaleString();
+        document.getElementById('totalRevenue').textContent = `$${stats.totalRevenue.toLocaleString()}`;
+        
+        // Load recent activities
+        await loadRecentActivities();
+        
+        // Initialize charts if Chart.js is available
+        if (typeof Chart !== 'undefined') {
+            initializeBookingsChart();
+        }
+    } catch (error) {
+        console.error('Failed to load dashboard overview:', error);
+        EventHub.showAlert('Failed to load dashboard data', 'danger');
     }
 }
 
 // Load recent activities
-function loadRecentActivities() {
+async function loadRecentActivities() {
     const container = document.getElementById('recentActivities');
     if (!container) return;
     
-    container.innerHTML = adminData.recentActivities.map(activity => `
-        <div class="activity-item">
-            <div class="activity-icon" style="background: ${activity.color};">
-                <i class="${activity.icon}"></i>
+    try {
+        const activities = await fetchRecentActivities();
+        
+        if (activities.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted">No recent activities</p>';
+            return;
+        }
+        
+        container.innerHTML = activities.map(activity => `
+            <div class="activity-item">
+                <div class="activity-icon" style="background: ${getActivityColor(activity.type)};">
+                    <i class="${getActivityIcon(activity.type)}"></i>
+                </div>
+                <div class="activity-content">
+                    <p style="margin: 0; font-weight: 500;">${activity.message}</p>
+                    <small class="text-muted">${activity.details} - ${formatTimestamp(activity.createdAt)}</small>
+                </div>
             </div>
-            <div class="activity-content">
-                <p style="margin: 0; font-weight: 500;">${activity.message}</p>
-                <small class="text-muted">${activity.details} - ${activity.timestamp}</small>
-            </div>
-        </div>
-    `).join('');
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load activities:', error);
+        container.innerHTML = '<p class="text-center text-muted">Failed to load activities</p>';
+    }
+}
+
+// Helper functions for activities
+function getActivityColor(type) {
+    const colors = {
+        'user_registration': '#28a745',
+        'event_submission': '#17a2b8',
+        'support_ticket': '#ffc107',
+        'booking_created': '#007bff',
+        'payment_completed': '#28a745'
+    };
+    return colors[type] || '#6c757d';
+}
+
+function getActivityIcon(type) {
+    const icons = {
+        'user_registration': 'fas fa-user-plus',
+        'event_submission': 'fas fa-calendar-plus',
+        'support_ticket': 'fas fa-exclamation-triangle',
+        'booking_created': 'fas fa-ticket-alt',
+        'payment_completed': 'fas fa-credit-card'
+    };
+    return icons[type] || 'fas fa-info-circle';
+}
+
+function formatTimestamp(timestamp) {
+    const now = new Date();
+    const activityTime = new Date(timestamp);
+    const diffMs = now - activityTime;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return activityTime.toLocaleDateString();
 }
 
 // Load users section
-function loadUsersSection() {
+async function loadUsersSection() {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
     
-    tbody.innerHTML = adminData.users.map(user => `
-        <tr>
-            <td>
-                <div>
-                    <strong>${user.name}</strong>
-                    <small class="text-muted d-block">ID: ${user.id}</small>
-                </div>
-            </td>
-            <td>${user.email}</td>
-            <td><span class="badge badge-${user.role === 'admin' ? 'secondary' : user.role === 'organizer' ? 'primary' : 'info'}">${user.role}</span></td>
-            <td><span class="badge badge-success">${user.status}</span></td>
-            <td>${new Date(user.joinDate).toLocaleDateString()}</td>
-            <td>${user.eventsBooked || user.eventsCreated || '-'}</td>
-            <td>
-                <button class="btn btn-small btn-outline" onclick="viewUser(${user.id})">View</button>
-                ${user.role !== 'admin' ? `<button class="btn btn-small btn-warning" onclick="suspendUser(${user.id})">Suspend</button>` : ''}
-            </td>
-        </tr>
-    `).join('');
+    try {
+        const users = await fetchAllUsers();
+        
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No users found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = users.map(user => `
+            <tr>
+                <td>
+                    <div>
+                        <strong>${user.firstName} ${user.lastName}</strong>
+                        <small class="text-muted d-block">ID: ${user.userId}</small>
+                    </div>
+                </td>
+                <td>${user.email}</td>
+                <td><span class="badge badge-${user.role === 'Admin' ? 'secondary' : user.role === 'Organizer' ? 'primary' : 'info'}">${user.role}</span></td>
+                <td><span class="badge badge-${user.status === 'Active' ? 'success' : 'warning'}">${user.status}</span></td>
+                <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                <td>${user.bookingCount || '-'}</td>
+                <td>
+                    <button class="btn btn-small btn-outline" onclick="viewUser('${user.userId}')">View</button>
+                    ${user.role !== 'Admin' ? `<button class="btn btn-small btn-warning" onclick="suspendUser('${user.userId}')">Suspend</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load users:', error);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load users</td></tr>';
+    }
 }
 
 // Load events section
-function loadEventsSection() {
+async function loadEventsSection() {
     const tbody = document.getElementById('eventsTableBody');
     if (!tbody) return;
     
-    tbody.innerHTML = adminData.events.map(event => `
-        <tr>
-            <td>
-                <div>
-                    <strong>${event.title}</strong>
-                    <small class="text-muted d-block">ID: ${String(event.id).padStart(3, '0')}</small>
-                </div>
-            </td>
-            <td>${event.organizer}</td>
-            <td>${new Date(event.date).toLocaleDateString()}</td>
-            <td>${event.category}</td>
-            <td>${event.capacity}</td>
-            <td>${event.booked}/${event.capacity}</td>
-            <td>$${event.revenue.toLocaleString()}</td>
-            <td><span class="badge badge-${event.status === 'approved' ? 'success' : 'warning'}">${event.status}</span></td>
-            <td>
-                ${event.status === 'pending' ? 
-                    `<button class="btn btn-small btn-success" onclick="approveEvent(${event.id})">Approve</button>
-                     <button class="btn btn-small btn-danger" onclick="rejectEvent(${event.id})">Reject</button>` :
-                    `<button class="btn btn-small btn-outline" onclick="viewEvent(${event.id})">View</button>`
-                }
-            </td>
-        </tr>
-    `).join('');
+    try {
+        const events = await fetchAllEvents();
+        
+        if (events.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No events found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = events.map(event => `
+            <tr>
+                <td>
+                    <div>
+                        <strong>${event.title}</strong>
+                        <small class="text-muted d-block">ID: ${event.eventId}</small>
+                    </div>
+                </td>
+                <td>${event.organizerName || 'Unknown'}</td>
+                <td>${new Date(event.startDate).toLocaleDateString()}</td>
+                <td>${event.categoryName || 'Uncategorized'}</td>
+                <td>${event.capacity}</td>
+                <td>${event.bookingCount || 0}/${event.capacity}</td>
+                <td>$${(event.totalRevenue || 0).toLocaleString()}</td>
+                <td><span class="badge badge-${event.status === 'Published' ? 'success' : event.status === 'Draft' ? 'warning' : 'secondary'}">${event.status}</span></td>
+                <td>
+                    ${event.status === 'Draft' ? 
+                        `<button class="btn btn-small btn-success" onclick="approveEvent('${event.eventId}')">Approve</button>
+                         <button class="btn btn-small btn-danger" onclick="rejectEvent('${event.eventId}')">Reject</button>` :
+                        `<button class="btn btn-small btn-outline" onclick="viewEvent('${event.eventId}')">View</button>`
+                    }
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load events:', error);
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">Failed to load events</td></tr>';
+    }
 }
 
 // Initialize booking chart
@@ -337,55 +373,90 @@ function loadAnalyticsCharts() {
 }
 
 // Event management functions
-function approveEvent(eventId) {
-    EventHub.showAlert(`Event ${eventId} approved successfully!`, 'success');
-    // Update event status in data
-    const event = adminData.events.find(e => e.id === eventId);
-    if (event) {
-        event.status = 'approved';
-        loadEventsSection(); // Refresh table
+async function approveEvent(eventId) {
+    try {
+        await EventHub.apiRequest(`/admin/events/${eventId}/approve`, {
+            method: 'PUT'
+        });
+        EventHub.showAlert('Event approved successfully!', 'success');
+        await loadEventsSection(); // Refresh table
+    } catch (error) {
+        console.error('Failed to approve event:', error);
+        EventHub.showAlert('Failed to approve event', 'danger');
     }
 }
 
-function rejectEvent(eventId) {
+async function rejectEvent(eventId) {
     const reason = prompt('Please provide a reason for rejection:');
     if (reason) {
-        EventHub.showAlert(`Event ${eventId} rejected. Reason: ${reason}`, 'warning');
-        // Remove event from pending list
-        adminData.events = adminData.events.filter(e => e.id !== eventId);
-        loadEventsSection(); // Refresh table
-    }
-}
-
-function suspendEvent(eventId) {
-    if (confirm('Are you sure you want to suspend this event?')) {
-        EventHub.showAlert(`Event ${eventId} suspended successfully!`, 'warning');
-    }
-}
-
-function viewEvent(eventId) {
-    EventHub.showAlert(`Viewing event ${eventId} details...`, 'info');
-}
-
-// User management functions
-function viewUser(userId) {
-    EventHub.showAlert(`Viewing user ${userId} profile...`, 'info');
-}
-
-function suspendUser(userId) {
-    if (confirm('Are you sure you want to suspend this user?')) {
-        EventHub.showAlert(`User ${userId} suspended successfully!`, 'warning');
-        // Update user status
-        const user = adminData.users.find(u => u.id === userId);
-        if (user) {
-            user.status = 'suspended';
-            loadUsersSection(); // Refresh table
+        try {
+            await EventHub.apiRequest(`/admin/events/${eventId}/reject`, {
+                method: 'PUT',
+                body: JSON.stringify({ reason })
+            });
+            EventHub.showAlert('Event rejected successfully', 'warning');
+            await loadEventsSection(); // Refresh table
+        } catch (error) {
+            console.error('Failed to reject event:', error);
+            EventHub.showAlert('Failed to reject event', 'danger');
         }
     }
 }
 
-function promoteUser(userId) {
-    EventHub.showAlert(`User ${userId} promoted to admin!`, 'success');
+async function suspendEvent(eventId) {
+    if (confirm('Are you sure you want to suspend this event?')) {
+        try {
+            await EventHub.apiRequest(`/admin/events/${eventId}/suspend`, {
+                method: 'PUT'
+            });
+            EventHub.showAlert('Event suspended successfully', 'warning');
+            await loadEventsSection(); // Refresh table
+        } catch (error) {
+            console.error('Failed to suspend event:', error);
+            EventHub.showAlert('Failed to suspend event', 'danger');
+        }
+    }
+}
+
+function viewEvent(eventId) {
+    window.open(`../pages/event-detail.html?id=${eventId}`, '_blank');
+}
+
+// User management functions
+function viewUser(userId) {
+    // Open user details in modal or new page
+    EventHub.showAlert('User details functionality to be implemented', 'info');
+}
+
+async function suspendUser(userId) {
+    if (confirm('Are you sure you want to suspend this user?')) {
+        try {
+            await EventHub.apiRequest(`/admin/users/${userId}/suspend`, {
+                method: 'PUT'
+            });
+            EventHub.showAlert('User suspended successfully', 'warning');
+            await loadUsersSection(); // Refresh table
+        } catch (error) {
+            console.error('Failed to suspend user:', error);
+            EventHub.showAlert('Failed to suspend user', 'danger');
+        }
+    }
+}
+
+async function promoteUser(userId) {
+    if (confirm('Are you sure you want to promote this user to admin?')) {
+        try {
+            await EventHub.apiRequest(`/admin/users/${userId}/promote`, {
+                method: 'PUT',
+                body: JSON.stringify({ role: 'Admin' })
+            });
+            EventHub.showAlert('User promoted successfully', 'success');
+            await loadUsersSection(); // Refresh table
+        } catch (error) {
+            console.error('Failed to promote user:', error);
+            EventHub.showAlert('Failed to promote user', 'danger');
+        }
+    }
 }
 
 // Filter functions
@@ -394,11 +465,11 @@ function filterUsers() {
     const role = document.getElementById('userRoleFilter').value;
     const status = document.getElementById('userStatusFilter').value;
     
-    let filteredUsers = adminData.users;
+    let filteredUsers = [...allUsers];
     
     if (search) {
         filteredUsers = filteredUsers.filter(user => 
-            user.name.toLowerCase().includes(search) || 
+            `${user.firstName} ${user.lastName}`.toLowerCase().includes(search) || 
             user.email.toLowerCase().includes(search)
         );
     }
@@ -418,18 +489,18 @@ function filterUsers() {
             <tr>
                 <td>
                     <div>
-                        <strong>${user.name}</strong>
-                        <small class="text-muted d-block">ID: ${user.id}</small>
+                        <strong>${user.firstName} ${user.lastName}</strong>
+                        <small class="text-muted d-block">ID: ${user.userId}</small>
                     </div>
                 </td>
                 <td>${user.email}</td>
-                <td><span class="badge badge-${user.role === 'admin' ? 'secondary' : user.role === 'organizer' ? 'primary' : 'info'}">${user.role}</span></td>
-                <td><span class="badge badge-success">${user.status}</span></td>
-                <td>${new Date(user.joinDate).toLocaleDateString()}</td>
-                <td>${user.eventsBooked || user.eventsCreated || '-'}</td>
+                <td><span class="badge badge-${user.role === 'Admin' ? 'secondary' : user.role === 'Organizer' ? 'primary' : 'info'}">${user.role}</span></td>
+                <td><span class="badge badge-${user.status === 'Active' ? 'success' : 'warning'}">${user.status}</span></td>
+                <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                <td>${user.bookingCount || '-'}</td>
                 <td>
-                    <button class="btn btn-small btn-outline" onclick="viewUser(${user.id})">View</button>
-                    ${user.role !== 'admin' ? `<button class="btn btn-small btn-warning" onclick="suspendUser(${user.id})">Suspend</button>` : ''}
+                    <button class="btn btn-small btn-outline" onclick="viewUser('${user.userId}')">View</button>
+                    ${user.role !== 'Admin' ? `<button class="btn btn-small btn-warning" onclick="suspendUser('${user.userId}')">Suspend</button>` : ''}
                 </td>
             </tr>
         `).join('');
@@ -441,17 +512,19 @@ function filterEvents() {
     const category = document.getElementById('eventCategoryFilter').value;
     const status = document.getElementById('eventStatusFilter').value;
     
-    let filteredEvents = adminData.events;
+    let filteredEvents = [...allEvents];
     
     if (search) {
         filteredEvents = filteredEvents.filter(event => 
             event.title.toLowerCase().includes(search) || 
-            event.organizer.toLowerCase().includes(search)
+            (event.organizerName && event.organizerName.toLowerCase().includes(search))
         );
     }
     
     if (category) {
-        filteredEvents = filteredEvents.filter(event => event.category.toLowerCase() === category.toLowerCase());
+        filteredEvents = filteredEvents.filter(event => 
+            event.categoryName && event.categoryName.toLowerCase() === category.toLowerCase()
+        );
     }
     
     if (status) {
@@ -466,21 +539,21 @@ function filterEvents() {
                 <td>
                     <div>
                         <strong>${event.title}</strong>
-                        <small class="text-muted d-block">ID: ${String(event.id).padStart(3, '0')}</small>
+                        <small class="text-muted d-block">ID: ${event.eventId}</small>
                     </div>
                 </td>
-                <td>${event.organizer}</td>
-                <td>${new Date(event.date).toLocaleDateString()}</td>
-                <td>${event.category}</td>
+                <td>${event.organizerName || 'Unknown'}</td>
+                <td>${new Date(event.startDate).toLocaleDateString()}</td>
+                <td>${event.categoryName || 'Uncategorized'}</td>
                 <td>${event.capacity}</td>
-                <td>${event.booked}/${event.capacity}</td>
-                <td>$${event.revenue.toLocaleString()}</td>
-                <td><span class="badge badge-${event.status === 'approved' ? 'success' : 'warning'}">${event.status}</span></td>
+                <td>${event.bookingCount || 0}/${event.capacity}</td>
+                <td>$${(event.totalRevenue || 0).toLocaleString()}</td>
+                <td><span class="badge badge-${event.status === 'Published' ? 'success' : event.status === 'Draft' ? 'warning' : 'secondary'}">${event.status}</span></td>
                 <td>
-                    ${event.status === 'pending' ? 
-                        `<button class="btn btn-small btn-success" onclick="approveEvent(${event.id})">Approve</button>
-                         <button class="btn btn-small btn-danger" onclick="rejectEvent(${event.id})">Reject</button>` :
-                        `<button class="btn btn-small btn-outline" onclick="viewEvent(${event.id})">View</button>`
+                    ${event.status === 'Draft' ? 
+                        `<button class="btn btn-small btn-success" onclick="approveEvent('${event.eventId}')">Approve</button>
+                         <button class="btn btn-small btn-danger" onclick="rejectEvent('${event.eventId}')">Reject</button>` :
+                        `<button class="btn btn-small btn-outline" onclick="viewEvent('${event.eventId}')">View</button>`
                     }
                 </td>
             </tr>
@@ -489,31 +562,97 @@ function filterEvents() {
 }
 
 // Utility functions
-function refreshData() {
-    EventHub.showAlert('Data refreshed successfully!', 'success');
-    loadDashboardOverview();
+async function refreshData() {
+    try {
+        EventHub.showAlert('Refreshing data...', 'info');
+        await loadDashboardOverview();
+        if (currentSection === 'users') {
+            await loadUsersSection();
+        } else if (currentSection === 'events') {
+            await loadEventsSection();
+        }
+        EventHub.showAlert('Data refreshed successfully!', 'success');
+    } catch (error) {
+        console.error('Failed to refresh data:', error);
+        EventHub.showAlert('Failed to refresh data', 'danger');
+    }
 }
 
-function exportData() {
-    EventHub.showAlert('Exporting data...', 'info');
-    // Simulate export process
-    setTimeout(() => {
+async function exportData() {
+    try {
+        EventHub.showAlert('Exporting data...', 'info');
+        const blob = await EventHub.apiRequest('/admin/export/all', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/octet-stream'
+            }
+        });
+        
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([blob]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `eventhub-export-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
         EventHub.showAlert('Data exported successfully!', 'success');
-    }, 2000);
+    } catch (error) {
+        console.error('Export failed:', error);
+        EventHub.showAlert('Export failed', 'danger');
+    }
 }
 
-function exportUsers() {
-    EventHub.showAlert('Exporting users...', 'info');
-    setTimeout(() => {
+async function exportUsers() {
+    try {
+        EventHub.showAlert('Exporting users...', 'info');
+        const response = await fetch(`${EventHub.API_BASE_URL}/admin/export/users`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Export failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
         EventHub.showAlert('Users exported successfully!', 'success');
-    }, 1500);
+    } catch (error) {
+        console.error('User export failed:', error);
+        EventHub.showAlert('User export failed', 'danger');
+    }
 }
 
-function exportEvents() {
-    EventHub.showAlert('Exporting events...', 'info');
-    setTimeout(() => {
+async function exportEvents() {
+    try {
+        EventHub.showAlert('Exporting events...', 'info');
+        const response = await fetch(`${EventHub.API_BASE_URL}/admin/export/events`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Export failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `events-export-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
         EventHub.showAlert('Events exported successfully!', 'success');
-    }, 1500);
+    } catch (error) {
+        console.error('Event export failed:', error);
+        EventHub.showAlert('Event export failed', 'danger');
+    }
 }
 
 // Initialize admin dashboard
