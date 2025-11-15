@@ -6,6 +6,25 @@ let events = [];
 let currentUser = null;
 let userBookings = [];
 
+// DOM Elements
+const navToggle = document.getElementById('navToggle');
+const navMenu = document.getElementById('navMenu');
+const featuredEventsContainer = document.getElementById('featuredEvents');
+
+// Navigation Toggle
+if (navToggle && navMenu) {
+    navToggle.addEventListener('click', () => {
+        navMenu.classList.toggle('active');
+    });
+}
+
+// Close mobile menu when clicking on a link
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('nav-link')) {
+        navMenu.classList.remove('active');
+    }
+});
+
 // API Helper Functions
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -15,7 +34,7 @@ async function apiRequest(endpoint, options = {}) {
         headers: {
             'Content-Type': 'application/json',
             ...(token && { 'Authorization': `Bearer ${token}` }),
-            ...options.headers
+            ...(options.headers || {})
         },
         ...options
     };
@@ -65,25 +84,6 @@ async function fetchUserBookings() {
         return [];
     }
 }
-
-// DOM Elements
-const navToggle = document.getElementById('navToggle');
-const navMenu = document.getElementById('navMenu');
-const featuredEventsContainer = document.getElementById('featuredEvents');
-
-// Navigation Toggle
-if (navToggle && navMenu) {
-    navToggle.addEventListener('click', () => {
-        navMenu.classList.toggle('active');
-    });
-}
-
-// Close mobile menu when clicking on a link
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('nav-link')) {
-        navMenu.classList.remove('active');
-    }
-});
 
 // Load Featured Events on Home Page
 async function loadFeaturedEvents() {
@@ -391,145 +391,153 @@ async function loadEventDetail() {
             return;
         }
 
-    const eventDetailContainer = document.getElementById('eventDetail');
-    if (eventDetailContainer) {
-        const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        const eventDetailContainer = document.getElementById('eventDetail');
+        if (eventDetailContainer) {
+            const formattedDate = new Date(event.startDate).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
 
-        eventDetailContainer.innerHTML = `
-            <div class="event-detail-header">
-                <div class="event-detail-image">
-                    <i class="${event.image}"></i>
-                </div>
-                <div class="event-detail-info">
-                    <h1>${event.title}</h1>
-                    <div class="event-meta">
-                        <div class="meta-item">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span>${formattedDate}</span>
+            const formattedTime = new Date(event.startDate).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            eventDetailContainer.innerHTML = `
+                <div class="event-detail-header">
+                    <div class="event-detail-image">
+                        ${event.featuredImageUrl ? 
+                            `<img src="${event.featuredImageUrl}" alt="${event.title}" />` : 
+                            '<i class="fas fa-calendar-alt"></i>'
+                        }
+                    </div>
+                    <div class="event-detail-info">
+                        <h1>${event.title}</h1>
+                        <div class="event-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>${formattedDate}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-clock"></i>
+                                <span>${formattedTime}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>${event.isOnline ? 'Online Event' : event.venueName}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <span>By ${event.organizerName || 'EventHub'}</span>
+                            </div>
                         </div>
-                        <div class="meta-item">
-                            <i class="fas fa-clock"></i>
-                            <span>${event.time}</span>
-                        </div>
-                        <div class="meta-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span>${event.venue}</span>
-                        </div>
-                        <div class="meta-item">
-                            <i class="fas fa-user"></i>
-                            <span>By ${event.organizer}</span>
+                        <div class="event-price-large">
+                            ${event.isFree ? 'Free' : `$${event.price}`}
                         </div>
                     </div>
-                    <div class="event-price-large">$${event.price}</div>
                 </div>
-            </div>
-            
-            <div class="event-detail-content">
-                <div class="event-description">
-                    <h3>About This Event</h3>
-                    <p>${event.description}</p>
+                
+                <div class="event-detail-content">
+                    <div class="event-description">
+                        <h3>About This Event</h3>
+                        <p>${event.description}</p>
+                        
+                        <h3>Event Details</h3>
+                        <ul>
+                            <li><strong>Category:</strong> ${event.categoryName || 'General'}</li>
+                            <li><strong>Capacity:</strong> ${event.capacity} attendees</li>
+                            <li><strong>Available Seats:</strong> ${event.capacity - (event.bookingCount || 0)}</li>
+                            <li><strong>Organizer:</strong> ${event.organizerName || 'EventHub'}</li>
+                        </ul>
+                    </div>
                     
-                    <h3>Event Details</h3>
-                    <ul>
-                        <li><strong>Category:</strong> ${event.category}</li>
-                        <li><strong>Capacity:</strong> ${event.capacity} attendees</li>
-                        <li><strong>Available Seats:</strong> ${event.available}</li>
-                        <li><strong>Organizer:</strong> ${event.organizer}</li>
-                    </ul>
-                </div>
-                
-                <div class="booking-form-container">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Book Your Tickets</h3>
-                        </div>
-                        <div class="card-body">
-                            <form id="bookingForm">
-                                <div class="form-group">
-                                    <label class="form-label">Number of Tickets</label>
-                                    <select class="form-control" name="tickets" required>
-                                        <option value="">Select tickets</option>
-                                        <option value="1">1 Ticket</option>
-                                        <option value="2">2 Tickets</option>
-                                        <option value="3">3 Tickets</option>
-                                        <option value="4">4 Tickets</option>
-                                        <option value="5">5 Tickets</option>
-                                    </select>
-                                    <div class="form-error"></div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" name="fullName" required>
-                                    <div class="form-error"></div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" name="email" required>
-                                    <div class="form-error"></div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" name="phone" required>
-                                    <div class="form-error"></div>
-                                </div>
-                                
-                                <div class="total-price">
-                                    <strong>Total: $<span id="totalPrice">${event.price}</span></strong>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-primary w-100">
-                                    ${event.available > 0 ? 'Book Now' : 'Sold Out'}
-                                </button>
-                            </form>
+                    <div class="booking-form-container">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Book Your Tickets</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="bookingForm">
+                                    <div class="form-group">
+                                        <label class="form-label">Number of Tickets</label>
+                                        <select class="form-control" name="tickets" required>
+                                            <option value="">Select tickets</option>
+                                            <option value="1">1 Ticket</option>
+                                            <option value="2">2 Tickets</option>
+                                            <option value="3">3 Tickets</option>
+                                            <option value="4">4 Tickets</option>
+                                            <option value="5">5 Tickets</option>
+                                        </select>
+                                        <div class="form-error"></div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" name="fullName" required>
+                                        <div class="form-error"></div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label">Email Address</label>
+                                        <input type="email" class="form-control" name="email" required>
+                                        <div class="form-error"></div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-control" name="phone" required>
+                                        <div class="form-error"></div>
+                                    </div>
+                                    
+                                    <div class="total-price">
+                                        <strong>Total: $<span id="totalPrice">${event.price || 0}</span></strong>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary w-100" ${(event.capacity - (event.bookingCount || 0)) <= 0 ? 'disabled' : ''}>
+                                        ${(event.capacity - (event.bookingCount || 0)) <= 0 ? 'Sold Out' : 'Book Now'}
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
 
-        // Add event listeners for booking form
-        const bookingForm = document.getElementById('bookingForm');
-        const ticketsSelect = bookingForm.querySelector('select[name="tickets"]');
-        const totalPriceElement = document.getElementById('totalPrice');
+            // Add event listeners for booking form
+            const bookingForm = document.getElementById('bookingForm');
+            const ticketsSelect = bookingForm.querySelector('select[name="tickets"]');
+            const totalPriceElement = document.getElementById('totalPrice');
 
-        ticketsSelect.addEventListener('change', () => {
-            const tickets = parseInt(ticketsSelect.value) || 0;
-            totalPriceElement.textContent = (event.price * tickets).toString();
-        });
+            ticketsSelect.addEventListener('change', () => {
+                const tickets = parseInt(ticketsSelect.value) || 0;
+                totalPriceElement.textContent = ((event.price || 0) * tickets).toString();
+            });
 
-        bookingForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (validateForm('bookingForm')) {
-                const tickets = parseInt(ticketsSelect.value);
-                if (tickets > event.available) {
-                    showAlert(`Sorry, only ${event.available} tickets available!`, 'danger');
-                    return;
+            bookingForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (validateForm('bookingForm')) {
+                    const formData = new FormData(bookingForm);
+                    const tickets = parseInt(formData.get('tickets'));
+                    const availableSeats = event.capacity - (event.bookingCount || 0);
+                    
+                    if (tickets > availableSeats) {
+                        showAlert(`Sorry, only ${availableSeats} tickets available!`, 'danger');
+                        return;
+                    }
+                    
+                    await bookEvent(eventId, tickets, {
+                        name: formData.get('fullName'),
+                        email: formData.get('email'),
+                        phone: formData.get('phone')
+                    });
                 }
-                
-                showAlert(`Successfully booked ${tickets} ticket(s) for "${event.title}"!`, 'success');
-                event.available -= tickets;
-                
-                // Update availability display
-                const availableElement = document.querySelector('.event-detail-info .meta-item:nth-child(3) span');
-                if (availableElement) {
-                    availableElement.textContent = `${event.available} available`;
-                }
-                
-                // Disable form if sold out
-                if (event.available <= 0) {
-                    bookingForm.querySelector('button[type="submit"]').textContent = 'Sold Out';
-                    bookingForm.querySelector('button[type="submit"]').disabled = true;
-                }
-            }
-        });
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load event detail:', error);
+        document.body.innerHTML = '<div class="container"><h1>Failed to load event details</h1></div>';
     }
 }
 
@@ -624,82 +632,6 @@ async function loadUserDashboard() {
         }
     }
 }
-
-// Initialize page-specific functions
-document.addEventListener('DOMContentLoaded', () => {
-    // Check authentication status
-    checkAuth();
-    
-    // Load featured events on home page
-    loadFeaturedEvents();
-    
-    // Load events on events page
-    if (window.location.pathname.includes('events.html')) {
-        loadEvents();
-        
-        // Add search functionality
-        const searchInput = document.getElementById('eventSearch');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const priceFilter = document.getElementById('priceFilter');
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                const filteredEvents = filterEvents(
-                    searchInput.value,
-                    categoryFilter ? categoryFilter.value : '',
-                    priceFilter ? priceFilter.value : ''
-                );
-                loadEvents(filteredEvents);
-            });
-        }
-        
-        if (categoryFilter) {
-            categoryFilter.addEventListener('change', () => {
-                const filteredEvents = filterEvents(
-                    searchInput ? searchInput.value : '',
-                    categoryFilter.value,
-                    priceFilter ? priceFilter.value : ''
-                );
-                loadEvents(filteredEvents);
-            });
-        }
-        
-        if (priceFilter) {
-            priceFilter.addEventListener('change', () => {
-                const filteredEvents = filterEvents(
-                    searchInput ? searchInput.value : '',
-                    categoryFilter ? categoryFilter.value : '',
-                    priceFilter.value
-                );
-                loadEvents(filteredEvents);
-            });
-        }
-    }
-    
-    // Load event detail
-    if (window.location.pathname.includes('event-detail.html')) {
-        loadEventDetail();
-    }
-    
-    // Load user dashboard
-    if (window.location.pathname.includes('user-dashboard.html')) {
-        loadUserDashboard();
-    }
-    
-    // Form submissions
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            if (validateForm(form.id)) {
-                const formType = form.id;
-                
-                await handleFormSubmission(formType, form);
-            }
-        });
-    });
-});
 
 // Handle form submissions
 async function handleFormSubmission(formType, form) {
@@ -796,6 +728,81 @@ function logout() {
     window.location.href = '../index.html';
 }
 
+// Initialize page-specific functions
+document.addEventListener('DOMContentLoaded', () => {
+    // Check authentication status
+    checkAuth();
+    
+    // Load featured events on home page
+    loadFeaturedEvents();
+    
+    // Load events on events page
+    if (window.location.pathname.includes('events.html')) {
+        loadEvents();
+        
+        // Add search functionality
+        const searchInput = document.getElementById('eventSearch');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const priceFilter = document.getElementById('priceFilter');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const filteredEvents = filterEvents(
+                    searchInput.value,
+                    categoryFilter ? categoryFilter.value : '',
+                    priceFilter ? priceFilter.value : ''
+                );
+                loadEvents(filteredEvents);
+            });
+        }
+        
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', () => {
+                const filteredEvents = filterEvents(
+                    searchInput ? searchInput.value : '',
+                    categoryFilter.value,
+                    priceFilter ? priceFilter.value : ''
+                );
+                loadEvents(filteredEvents);
+            });
+        }
+        
+        if (priceFilter) {
+            priceFilter.addEventListener('change', () => {
+                const filteredEvents = filterEvents(
+                    searchInput ? searchInput.value : '',
+                    categoryFilter ? categoryFilter.value : '',
+                    priceFilter.value
+                );
+                loadEvents(filteredEvents);
+            });
+        }
+    }
+    
+    // Load event detail
+    if (window.location.pathname.includes('event-detail.html')) {
+        loadEventDetail();
+    }
+    
+    // Load user dashboard
+    if (window.location.pathname.includes('user-dashboard.html')) {
+        loadUserDashboard();
+    }
+    
+    // Form submissions
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (validateForm(form.id)) {
+                const formType = form.id;
+                await handleFormSubmission(formType, form);
+            }
+        });
+    });
+});
+
 // Export functions for use in other files
 window.EventHub = {
     createEventCard,
@@ -808,5 +815,6 @@ window.EventHub = {
     fetchEvents,
     fetchCurrentUser,
     logout,
-    checkAuth
+    checkAuth,
+    apiRequest
 };
