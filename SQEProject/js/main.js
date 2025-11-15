@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = '/api'; // Configure this to match your backend API
+const API_BASE_URL = 'http://localhost:3000/api'; // Backend API running on port 3000
 
 // Global data stores
 let events = [];
@@ -43,13 +43,20 @@ async function apiRequest(endpoint, options = {}) {
         const response = await fetch(url, config);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.text();
+            console.error(`API Error ${response.status}:`, errorData);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorData}`);
         }
         
         return await response.json();
     } catch (error) {
         console.error('API request failed:', error);
-        showAlert('Network error. Please try again.', 'danger');
+        
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            showAlert('Cannot connect to server. Please ensure the backend is running on http://localhost:3000', 'danger');
+        } else {
+            showAlert(`Network error: ${error.message}`, 'danger');
+        }
         throw error;
     }
 }
@@ -57,7 +64,9 @@ async function apiRequest(endpoint, options = {}) {
 // Data fetching functions
 async function fetchEvents() {
     try {
+        console.log('Fetching events from:', `${API_BASE_URL}/events`);
         events = await apiRequest('/events');
+        console.log('Successfully fetched events:', events.length);
         return events;
     } catch (error) {
         console.error('Failed to fetch events:', error);
@@ -67,10 +76,15 @@ async function fetchEvents() {
 
 async function fetchCurrentUser() {
     try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            return null;
+        }
         currentUser = await apiRequest('/auth/me');
         return currentUser;
     } catch (error) {
         console.error('Failed to fetch current user:', error);
+        localStorage.removeItem('authToken'); // Remove invalid token
         return null;
     }
 }
@@ -89,12 +103,27 @@ async function fetchUserBookings() {
 async function loadFeaturedEvents() {
     if (featuredEventsContainer) {
         try {
+            featuredEventsContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading events...</div>';
+            
             const allEvents = await fetchEvents();
-            const featuredEvents = allEvents.filter(event => event.isFeatured).slice(0, 3);
-            featuredEventsContainer.innerHTML = featuredEvents.map(event => createEventCard(event, true)).join('');
+            console.log('Loaded events:', allEvents.length);
+            
+            let eventsToShow = allEvents.filter(event => event.isFeatured).slice(0, 3);
+            
+            // If no featured events, show the first 3 events
+            if (eventsToShow.length === 0) {
+                console.log('No featured events found, showing first 3 events');
+                eventsToShow = allEvents.slice(0, 3);
+            }
+            
+            if (eventsToShow.length > 0) {
+                featuredEventsContainer.innerHTML = eventsToShow.map(event => createEventCard(event, true)).join('');
+            } else {
+                featuredEventsContainer.innerHTML = '<p class="text-center">No events available at the moment.</p>';
+            }
         } catch (error) {
             console.error('Failed to load featured events:', error);
-            featuredEventsContainer.innerHTML = '<p class="text-center">Unable to load featured events. Please try again later.</p>';
+            featuredEventsContainer.innerHTML = '<p class="text-center text-danger">Unable to load events. Please check your connection and try again.</p>';
         }
     }
 }
@@ -115,7 +144,7 @@ function createEventCard(event, isFeatured = false) {
 
     const availableSeats = event.capacity - (event.bookingCount || 0);
     const eventImage = event.featuredImageUrl ? 
-        `<img src="${event.featuredImageUrl}" alt="${event.title}" />` : 
+        `<img src="${event.featuredImageUrl}" alt="${event.title}" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\\'fas fa-calendar-alt\\'></i>'" />` : 
         `<i class="fas fa-calendar-alt"></i>`;
 
     return `
@@ -543,21 +572,59 @@ async function loadEventDetail() {
 
 // Dashboard Functions
 async function loadUserDashboard() {
+    // Try to fetch user if not already loaded
     if (!currentUser) {
-        window.location.href = 'login.html';
-        return;
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            try {
+                currentUser = await apiRequest('/auth/me');
+            } catch (error) {
+                console.error('Failed to fetch user, redirecting to login:', error);
+                window.location.href = 'login.html';
+                return;
+            }
+        } else {
+            window.location.href = 'login.html';
+            return;
+        }
     }
     
     const dashboardContent = document.getElementById('dashboardContent');
     
+    // Update user name in navigation
+    const welcomeSpan = document.querySelector('.nav-auth span');
+    if (welcomeSpan && currentUser) {
+        welcomeSpan.textContent = `Welcome, ${currentUser.firstName}!`;
+    }
+    
+    // Update welcome message in dashboard
+    const welcomeMessage = document.querySelector('.dashboard-header p');
+    if (welcomeMessage && currentUser) {
+        welcomeMessage.textContent = `Welcome back, ${currentUser.firstName}! Here's your event overview.`;
+    }
+    
+    // Update profile form with user data
+    const fullNameInput = document.querySelector('input[name="fullName"]');
+    if (fullNameInput && currentUser) {
+        fullNameInput.value = `${currentUser.firstName} ${currentUser.lastName}`;
+    }
+    
     if (dashboardContent) {
         try {
-            const bookings = await fetchUserBookings();
-            const bookedEvents = await Promise.all(
-                bookings.map(booking => apiRequest(`/events/${booking.eventId}`))
-            );
-        
-            const upcomingEvents = bookedEvents.filter(event => new Date(event.startDate) > new Date());
+            const bookings = await fetchUserBookings().catch(() => []);
+            let upcomingEvents = [];
+            
+            if (bookings.length > 0) {
+                try {
+                    const bookedEvents = await Promise.all(
+                        bookings.map(booking => apiRequest(`/events/${booking.eventId}`).catch(() => null))
+                    );
+                    upcomingEvents = bookedEvents.filter(event => event && new Date(event.startDate) > new Date());
+                } catch (error) {
+                    console.error('Error fetching booked events:', error);
+                }
+            }
+            
             const notifications = await apiRequest('/notifications/unread').catch(() => []);
             
             dashboardContent.innerHTML = `
@@ -649,24 +716,44 @@ async function handleFormSubmission(formType, form) {
                     })
                 });
                 
+                // Store authentication data
                 localStorage.setItem('authToken', loginResult.token);
+                localStorage.setItem('userType', loginResult.user.userType);
+                localStorage.setItem('userId', loginResult.user.userId);
                 currentUser = loginResult.user;
+                
                 showAlert('Login successful! Redirecting...', 'success');
                 
+                // Redirect to appropriate dashboard
                 setTimeout(() => {
-                    const redirectUrl = loginResult.user.role === 'admin' ? 
-                        '../pages/admin-dashboard.html' : 
-                        loginResult.user.role === 'organizer' ? 
-                        '../pages/organizer-dashboard.html' : 
-                        '../pages/user-dashboard.html';
+                    const redirectUrl = loginResult.user.userType === 'Admin' ? 
+                        'admin-dashboard.html' : 
+                        loginResult.user.userType === 'Organizer' ? 
+                        'organizer-dashboard.html' : 
+                        'user-dashboard.html';
                     window.location.href = redirectUrl;
-                }, 2000);
+                }, 1500);
                 break;
                 
             case 'registerForm':
+                // Map userType from frontend to backend format
+                let userRole = 'User'; // default
+                if (data.userType === 'organizer' || data.userType === 'both') {
+                    userRole = 'Organizer';
+                }
+                
+                const registerData = {
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    email: data.email,
+                    password: data.password,
+                    phone: data.phone,
+                    userType: userRole
+                };
+                
                 await apiRequest('/auth/register', {
                     method: 'POST',
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(registerData)
                 });
                 
                 showAlert('Registration successful! Please check your email to verify your account.', 'success');
@@ -714,10 +801,10 @@ async function handleFormSubmission(formType, form) {
 }
 
 // Authentication check
-function checkAuth() {
+async function checkAuth() {
     const token = localStorage.getItem('authToken');
     if (token) {
-        fetchCurrentUser();
+        await fetchCurrentUser();
     }
 }
 
@@ -729,9 +816,9 @@ function logout() {
 }
 
 // Initialize page-specific functions
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Check authentication status
-    checkAuth();
+    await checkAuth();
     
     // Load featured events on home page
     loadFeaturedEvents();
@@ -802,6 +889,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// Host Event Function with Authentication Check
+function hostEvent() {
+    const token = localStorage.getItem('authToken');
+    const userType = localStorage.getItem('userType');
+    
+    if (!token) {
+        showAlert('Please log in to host events.', 'info');
+        setTimeout(() => {
+            window.location.href = 'pages/login.html?redirect=host';
+        }, 1500);
+        return;
+    }
+    
+    if (userType === 'User') {
+        showAlert('Only organizers can host events. Please contact support to upgrade your account.', 'warning');
+        return;
+    }
+    
+    window.location.href = 'pages/organizer-dashboard.html';
+}
+
+// Make hostEvent available globally
+window.hostEvent = hostEvent;
 
 // Export functions for use in other files
 window.EventHub = {

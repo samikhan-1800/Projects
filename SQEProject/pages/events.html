@@ -215,7 +215,7 @@
                 <div class="footer-section">
                     <h4>For Organizers</h4>
                     <ul>
-                        <li><a href="organizer-dashboard.html">Create Event</a></li>
+                        <li><a href="#" onclick="hostEvent()">Create Event</a></li>
                         <li><a href="#">Pricing</a></li>
                         <li><a href="#">Resources</a></li>
                         <li><a href="#">Support</a></li>
@@ -244,20 +244,71 @@
         let currentPage = 1;
         const eventsPerPage = 6;
         let currentView = 'grid';
+        let allCategories = [];
 
         // Initialize events page
-        document.addEventListener('DOMContentLoaded', () => {
-            currentEvents = [...window.EventHub.sampleEvents];
-            filteredEvents = [...currentEvents];
-            displayEvents();
-            updateEventsCount();
-            
-            // Add event listeners for filters
+        document.addEventListener('DOMContentLoaded', async () => {
+            showLoading(true);
+            await loadAllEvents();
+            await loadEventCategories();
+            setupEventListeners();
+            showLoading(false);
+        });
+
+        async function loadAllEvents() {
+            try {
+                currentEvents = await fetchEvents();
+                filteredEvents = [...currentEvents];
+                displayEvents();
+                updateEventsCount();
+            } catch (error) {
+                console.error('Failed to load events:', error);
+                showNoEventsMessage('Failed to load events. Please try again later.');
+            }
+        }
+
+        async function loadEventCategories() {
+            try {
+                const categories = await apiRequest('/events/categories');
+                allCategories = categories;
+                populateCategoryFilter(categories);
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        function populateCategoryFilter(categories) {
+            const categoryFilter = document.getElementById('categoryFilter');
+            categoryFilter.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.name.toLowerCase();
+                option.textContent = category.name;
+                categoryFilter.appendChild(option);
+            });
+        }
+
+        function setupEventListeners() {
             document.getElementById('eventSearch').addEventListener('input', applyFilters);
             document.getElementById('categoryFilter').addEventListener('change', applyFilters);
             document.getElementById('priceFilter').addEventListener('change', applyFilters);
             document.getElementById('sortFilter').addEventListener('change', applyFilters);
-        });
+        }
+
+        function showLoading(show) {
+            const container = document.getElementById('eventsContainer');
+            if (show) {
+                container.innerHTML = '<div class="text-center" style="padding: 60px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading events...</p></div>';
+            }
+        }
+
+        function showNoEventsMessage(message) {
+            const container = document.getElementById('eventsContainer');
+            const noEventsDiv = document.getElementById('noEventsFound');
+            container.style.display = 'none';
+            noEventsDiv.style.display = 'block';
+            noEventsDiv.querySelector('p').textContent = message;
+        }
 
         function displayEvents() {
             const container = document.getElementById('eventsContainer');
@@ -280,7 +331,7 @@
             if (currentView === 'grid') {
                 container.className = 'events-grid';
                 container.innerHTML = eventsToShow.map(event => 
-                    window.EventHub.createEventCard(event)
+                    createEventCard(event, false)
                 ).join('');
             } else {
                 container.className = 'events-list';
@@ -302,18 +353,28 @@
         }
 
         function createEventListItem(event) {
-            const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
+            const formattedDate = new Date(event.startDate).toLocaleDateString('en-US', {
                 weekday: 'short',
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric'
             });
 
+            const formattedTime = new Date(event.startDate).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const availableSeats = event.capacity - (event.bookingCount || 0);
+            const eventImage = event.featuredImageUrl ? 
+                `<img src="${event.featuredImageUrl}" alt="${event.title}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />` : 
+                `<i class="fas fa-calendar-alt"></i>`;
+
             return `
                 <div class="card" style="padding: 30px;">
                     <div style="display: flex; gap: 30px; align-items: center;">
-                        <div class="event-image" style="width: 120px; height: 120px; flex-shrink: 0;">
-                            <i class="${event.image}"></i>
+                        <div class="event-image" style="width: 120px; height: 120px; flex-shrink: 0; border-radius: 8px; overflow: hidden;">
+                            ${eventImage}
                         </div>
                         <div style="flex: 1;">
                             <h3 class="event-title">${event.title}</h3>
@@ -324,24 +385,28 @@
                                 </div>
                                 <div class="event-detail">
                                     <i class="fas fa-clock"></i>
-                                    <span>${event.time}</span>
+                                    <span>${formattedTime}</span>
                                 </div>
                                 <div class="event-detail">
                                     <i class="fas fa-map-marker-alt"></i>
-                                    <span>${event.venue}</span>
+                                    <span>${event.isOnline ? 'Online Event' : event.venueName || 'TBA'}</span>
                                 </div>
                                 <div class="event-detail">
                                     <i class="fas fa-users"></i>
-                                    <span>${event.available}/${event.capacity} available</span>
+                                    <span>${availableSeats}/${event.capacity} available</span>
                                 </div>
                             </div>
-                            <p style="margin: 15px 0; color: #666;">${event.description.substring(0, 150)}...</p>
+                            <p style="margin: 15px 0; color: #666;">${(event.shortDescription || event.description || '').substring(0, 150)}...</p>
                         </div>
                         <div style="text-align: center; flex-shrink: 0;">
-                            <div class="event-price" style="margin-bottom: 20px;">$${event.price}</div>
+                            <div class="event-price" style="margin-bottom: 20px;">
+                                ${event.isFree ? 'Free' : `$${event.price}`}
+                            </div>
                             <div style="display: flex; flex-direction: column; gap: 10px;">
-                                <a href="event-detail.html?id=${event.id}" class="btn btn-outline">View Details</a>
-                                <button onclick="bookEvent(${event.id})" class="btn btn-primary">Book Now</button>
+                                <a href="event-detail.html?id=${event.eventId}" class="btn btn-outline">View Details</a>
+                                <button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
+                                    ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -350,13 +415,38 @@
         }
 
         function applyFilters() {
-            const searchTerm = document.getElementById('eventSearch').value;
-            const category = document.getElementById('categoryFilter').value;
+            const searchTerm = document.getElementById('eventSearch').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value.toLowerCase();
             const priceRange = document.getElementById('priceFilter').value;
             const sortBy = document.getElementById('sortFilter').value;
             
             // Filter events
-            filteredEvents = window.EventHub.filterEvents(searchTerm, category, priceRange);
+            filteredEvents = currentEvents.filter(event => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    event.title.toLowerCase().includes(searchTerm) ||
+                    (event.description && event.description.toLowerCase().includes(searchTerm)) ||
+                    (event.venueName && event.venueName.toLowerCase().includes(searchTerm)) ||
+                    (event.organizerName && event.organizerName.toLowerCase().includes(searchTerm));
+                
+                // Category filter
+                const matchesCategory = !category || 
+                    (event.categoryName && event.categoryName.toLowerCase() === category);
+                
+                // Price filter
+                let matchesPrice = true;
+                if (priceRange) {
+                    const price = event.price || 0;
+                    const [min, max] = priceRange.split('-').map(p => p === '' ? Infinity : parseFloat(p));
+                    if (max === undefined) {
+                        matchesPrice = price >= min;
+                    } else {
+                        matchesPrice = price >= min && price <= max;
+                    }
+                }
+                
+                return matchesSearch && matchesCategory && matchesPrice;
+            });
             
             // Sort events
             sortEvents(sortBy);
@@ -372,19 +462,19 @@
         function sortEvents(sortBy) {
             switch(sortBy) {
                 case 'date-asc':
-                    filteredEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    filteredEvents.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
                     break;
                 case 'date-desc':
-                    filteredEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    filteredEvents.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
                     break;
                 case 'price-asc':
-                    filteredEvents.sort((a, b) => a.price - b.price);
+                    filteredEvents.sort((a, b) => (a.price || 0) - (b.price || 0));
                     break;
                 case 'price-desc':
-                    filteredEvents.sort((a, b) => b.price - a.price);
+                    filteredEvents.sort((a, b) => (b.price || 0) - (a.price || 0));
                     break;
                 case 'popularity':
-                    filteredEvents.sort((a, b) => (b.capacity - b.available) - (a.capacity - a.available));
+                    filteredEvents.sort((a, b) => (b.bookingCount || 0) - (a.bookingCount || 0));
                     break;
             }
         }
@@ -438,22 +528,48 @@
 
         // Override the bookEvent function to handle UI updates
         window.bookEvent = function(eventId) {
-            const event = window.EventHub.sampleEvents.find(e => e.id === eventId);
+            const event = currentEvents.find(e => e.eventId === eventId);
             if (!event) return;
 
-            if (event.available <= 0) {
-                window.EventHub.showAlert('Sorry, this event is sold out!', 'danger');
+            const availableSeats = event.capacity - (event.bookingCount || 0);
+            if (availableSeats <= 0) {
+                showAlert('Sorry, this event is sold out!', 'danger');
                 return;
             }
 
-            // Simulate booking process
-            window.EventHub.showAlert(`Successfully booked "${event.title}"! Check your email for confirmation.`, 'success');
+            // Check if user is logged in
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                showAlert('Please log in to book events.', 'info');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
+
+            // Redirect to event detail page for booking
+            window.location.href = `event-detail.html?id=${eventId}`;
+        };
+
+        // Add authentication check for host event functionality
+        window.hostEvent = function() {
+            const token = localStorage.getItem('authToken');
+            const userType = localStorage.getItem('userType');
             
-            // Update available seats
-            event.available -= 1;
+            if (!token) {
+                showAlert('Please log in to host events.', 'info');
+                setTimeout(() => {
+                    window.location.href = 'login.html?redirect=host';
+                }, 1500);
+                return;
+            }
             
-            // Refresh the display
-            displayEvents();
+            if (userType === 'User') {
+                showAlert('Only organizers can host events. Please contact support to upgrade your account.', 'warning');
+                return;
+            }
+            
+            window.location.href = 'organizer-dashboard.html';
         };
     </script>
 </body>

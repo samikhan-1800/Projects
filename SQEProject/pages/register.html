@@ -43,10 +43,17 @@
                 </div>
                 
                 <form id="registerForm" novalidate>
-                    <div class="form-group">
-                        <label for="fullName" class="form-label">Full Name</label>
-                        <input type="text" id="fullName" name="fullName" class="form-control" data-label="Full Name" required>
-                        <div class="form-error"></div>
+                    <div class="form-row" style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" id="firstName" name="firstName" class="form-control" data-label="First Name" required>
+                            <div class="form-error"></div>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" id="lastName" name="lastName" class="form-control" data-label="Last Name" required>
+                            <div class="form-error"></div>
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -145,7 +152,7 @@
                 <div class="footer-section">
                     <h4>For Organizers</h4>
                     <ul>
-                        <li><a href="organizer-dashboard.html">Create Event</a></li>
+                        <li><a href="#" onclick="hostEvent()">Create Event</a></li>
                         <li><a href="#">Pricing</a></li>
                         <li><a href="#">Resources</a></li>
                         <li><a href="#">Support</a></li>

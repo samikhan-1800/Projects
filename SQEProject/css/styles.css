@@ -505,6 +505,9 @@ p {
     overflow: hidden;
     box-shadow: var(--shadow);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: fit-content;
+    display: flex;
+    flex-direction: column;
 }
 
 .event-card:hover {
@@ -521,10 +524,45 @@ p {
     justify-content: center;
     color: white;
     font-size: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.event-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.event-card:hover .event-image img {
+    transform: scale(1.05);
+}
+
+/* Overlay for better text visibility on images */
+.event-image::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%);
+    pointer-events: none;
+}
+
+/* Icon styling when no image */
+.event-image i {
+    position: relative;
+    z-index: 2;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .event-content {
     padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .event-title {
@@ -539,6 +577,7 @@ p {
     flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
+    flex: 1;
 }
 
 .event-detail {
@@ -554,6 +593,24 @@ p {
     font-weight: bold;
     color: var(--color-primary);
     margin-bottom: 16px;
+}
+
+.card-footer {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.card-footer .btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+}
+
+.card-footer .btn:only-child {
+    flex: none;
+    width: 100%;
 }
 
 /* Hero Section */
@@ -663,6 +720,24 @@ p {
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 30px;
     margin-bottom: 40px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Prevent single event from being too wide */
+.events-grid .event-card:only-child {
+    max-width: 450px;
+    margin: 0 auto;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+/* For 2-3 events, limit max width */
+.events-grid .event-card:nth-child(-n+3):nth-last-child(2),
+.events-grid .event-card:nth-child(-n+3):nth-last-child(2) ~ .event-card,
+.events-grid .event-card:nth-child(-n+3):nth-last-child(3),
+.events-grid .event-card:nth-child(-n+3):nth-last-child(3) ~ .event-card {
+    max-width: 400px;
 }
 
 /* Features */
@@ -1171,6 +1246,29 @@ p {
 
     .events-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .events-grid .event-card:only-child,
+    .events-grid .event-card:nth-child(-n+3):nth-last-child(2),
+    .events-grid .event-card:nth-child(-n+3):nth-last-child(2) ~ .event-card,
+    .events-grid .event-card:nth-child(-n+3):nth-last-child(3),
+    .events-grid .event-card:nth-child(-n+3):nth-last-child(3) ~ .event-card {
+        max-width: none;
+    }
+    
+    .event-image {
+        height: 180px;
+        font-size: 2.5rem;
+    }
+    
+    .card-footer {
+        flex-direction: column;
+    }
+    
+    .card-footer .btn {
+        width: 100%;
+        flex: none;
     }
 
     .features-grid {
