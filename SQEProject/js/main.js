@@ -315,7 +315,7 @@ function showAlert(message, type = 'info') {
     const alertHTML = `
         <div id="${alertId}" class="alert alert-${type}">
             ${message}
-            <button onclick="closeAlert('${alertId}')" class="btn btn-small" style="float: right; margin-left: 10px;">×</button>
+            <button onclick="closeAlert('${alertId}')" class="btn btn-small alert-close">×</button>
         </div>
     `;
     
@@ -328,14 +328,13 @@ function showAlert(message, type = 'info') {
 }
 
 function createAlertContainer() {
-    const container = document.createElement('div');
-    container.id = 'alertContainer';
-    container.style.position = 'fixed';
-    container.style.top = '80px';
-    container.style.right = '20px';
-    container.style.zIndex = '1001';
-    container.style.maxWidth = '400px';
-    document.body.appendChild(container);
+    let container = document.getElementById('alertContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'alertContainer';
+        container.className = 'alert-container';
+        document.body.appendChild(container);
+    }
     return container;
 }
 
