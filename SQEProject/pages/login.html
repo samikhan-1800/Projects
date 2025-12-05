@@ -91,6 +91,11 @@
                         <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('organizer')">Organizer Demo</button>
                         <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('admin')">Admin Demo</button>
                     </div>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-small btn-success" onclick="directLogin('user')">Quick User Login</button>
+                        <button class="btn btn-small btn-success" onclick="directLogin('organizer')">Quick Organizer Login</button>
+                        <button class="btn btn-small btn-success" onclick="directLogin('admin')">Quick Admin Login</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -184,14 +189,101 @@
                     passwordInput.value = 'admin123';
                     break;
             }
+            
+            // Clear any existing errors
+            document.querySelectorAll('.form-error').forEach(error => error.textContent = '');
+            document.querySelectorAll('.form-control').forEach(input => input.classList.remove('error'));
+        }
+        
+        // Direct login bypass for testing
+        function directLogin(type) {
+            const users = {
+                'user': {
+                    userId: 1,
+                    email: 'john@example.com',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    userType: 'User'
+                },
+                'organizer': {
+                    userId: 2,
+                    email: 'jane@example.com',
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    userType: 'Organizer'
+                },
+                'admin': {
+                    userId: 3,
+                    email: 'admin@eventhub.com',
+                    firstName: 'Admin',
+                    lastName: 'User',
+                    userType: 'Admin'
+                }
+            };
+            
+            const user = users[type];
+            if (user) {
+                // Store authentication data
+                const token = 'demo-token-' + Date.now();
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('userType', user.userType);
+                localStorage.setItem('userId', user.userId);
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                
+                // Show success message
+                if (window.showAlert) {
+                    window.showAlert('Quick login successful! Redirecting...', 'success');
+                } else {
+                    console.log('Login successful! Redirecting...');
+                }
+                
+                // Redirect to appropriate dashboard
+                setTimeout(() => {
+                    const redirectUrl = user.userType === 'Admin' ? 
+                        'admin-dashboard.html' : 
+                        user.userType === 'Organizer' ? 
+                        'organizer-dashboard.html' : 
+                        'user-dashboard.html';
+                    window.location.href = redirectUrl;
+                }, 1000);
+            }
         }
         
         // Handle forgot password form
         document.getElementById('forgotPasswordForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            showAlert('Password reset link sent to your email!', 'success');
-            closeModal('forgotPasswordModal');
+            if (window.showAlert) {
+                window.showAlert('Password reset link sent to your email!', 'success');
+            } else {
+                alert('Password reset link sent to your email!');
+            }
+            if (window.EventHub && window.EventHub.closeModal) {
+                window.EventHub.closeModal('forgotPasswordModal');
+            } else {
+                closeModal('forgotPasswordModal');
+            }
         });
+        
+        // Ensure modal functions are available
+        if (!window.openModal) {
+            window.openModal = function(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            };
+        }
+        
+        if (!window.closeModal) {
+            window.closeModal = function(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                }
+            };
+        }
     </script>
 </body>
 </html>

@@ -330,6 +330,9 @@ function showAlert(message, type = 'info') {
     }, 5000);
 }
 
+// Make showAlert globally available
+window.showAlert = showAlert;
+
 function createAlertContainer() {
     let container = document.getElementById('alertContainer');
     if (!container) {
@@ -705,30 +708,73 @@ async function handleFormSubmission(formType, form) {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
+    console.log('Form submission:', { formType, data });
+    
     try {
         switch (formType) {
             case 'loginForm':
-                const loginResult = await apiRequest('/auth/login', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        email: data.email,
-                        password: data.password
-                    })
-                });
+                // Demo user authentication (no backend required)
+                const demoUsers = {
+                    'john@example.com': {
+                        userId: 1,
+                        email: 'john@example.com',
+                        firstName: 'John',
+                        lastName: 'Doe',
+                        userType: 'User',
+                        password: 'demo123'
+                    },
+                    'jane@example.com': {
+                        userId: 2,
+                        email: 'jane@example.com',
+                        firstName: 'Jane',
+                        lastName: 'Smith',
+                        userType: 'Organizer',
+                        password: 'demo123'
+                    },
+                    'admin@eventhub.com': {
+                        userId: 3,
+                        email: 'admin@eventhub.com',
+                        firstName: 'Admin',
+                        lastName: 'User',
+                        userType: 'Admin',
+                        password: 'admin123'
+                    }
+                };
+                
+                // Also check registered users from localStorage
+                const registeredUsers = JSON.parse(localStorage.getItem('demoUsers') || '{}');
+                const allUsers = { ...demoUsers, ...registeredUsers };
+                
+                console.log('Login attempt:', { email: data.email, password: data.password });
+                console.log('Available users:', Object.keys(allUsers));
+                
+                const user = allUsers[data.email];
+                if (!user) {
+                    showAlert('Email not found. Please check your email or use a demo account.', 'danger');
+                    return;
+                }
+                
+                if (user.password !== data.password) {
+                    console.log('Password mismatch:', { expected: user.password, received: data.password });
+                    showAlert('Invalid password. Please check your password or use a demo account.', 'danger');
+                    return;
+                }
                 
                 // Store authentication data
-                localStorage.setItem('authToken', loginResult.token);
-                localStorage.setItem('userType', loginResult.user.userType);
-                localStorage.setItem('userId', loginResult.user.userId);
-                currentUser = loginResult.user;
+                const token = 'demo-token-' + Date.now();
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('userType', user.userType);
+                localStorage.setItem('userId', user.userId);
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                currentUser = user;
                 
                 showAlert('Login successful! Redirecting...', 'success');
                 
                 // Redirect to appropriate dashboard
                 setTimeout(() => {
-                    const redirectUrl = loginResult.user.userType === 'Admin' ? 
+                    const redirectUrl = user.userType === 'Admin' ? 
                         'admin-dashboard.html' : 
-                        loginResult.user.userType === 'Organizer' ? 
+                        user.userType === 'Organizer' ? 
                         'organizer-dashboard.html' : 
                         'user-dashboard.html';
                     window.location.href = redirectUrl;
@@ -742,53 +788,84 @@ async function handleFormSubmission(formType, form) {
                     userRole = 'Organizer';
                 }
                 
-                const registerData = {
+                // Demo registration - store user data locally
+                const existingUsers = JSON.parse(localStorage.getItem('demoUsers') || '{}');
+                
+                if (existingUsers[data.email]) {
+                    showAlert('Email already exists. Please use a different email or try logging in.', 'danger');
+                    return;
+                }
+                
+                const newUser = {
+                    userId: Date.now(),
                     firstName: data.firstName,
                     lastName: data.lastName,
                     email: data.email,
                     password: data.password,
                     phone: data.phone,
-                    userType: userRole
+                    userType: userRole,
+                    createdAt: new Date().toISOString()
                 };
                 
-                await apiRequest('/auth/register', {
-                    method: 'POST',
-                    body: JSON.stringify(registerData)
-                });
+                existingUsers[data.email] = newUser;
+                localStorage.setItem('demoUsers', JSON.stringify(existingUsers));
                 
-                showAlert('Registration successful! Please check your email to verify your account.', 'success');
+                showAlert('Registration successful! You can now log in with your credentials.', 'success');
                 setTimeout(() => {
                     window.location.href = 'login.html';
                 }, 2000);
                 break;
                 
             case 'contactForm':
-                await apiRequest('/contact', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
+                // Demo contact form - store message locally
+                const messages = JSON.parse(localStorage.getItem('contactMessages') || '[]');
+                messages.push({
+                    ...data,
+                    timestamp: new Date().toISOString(),
+                    id: Date.now()
                 });
+                localStorage.setItem('contactMessages', JSON.stringify(messages));
                 
                 showAlert('Thank you for your message! We will get back to you soon.', 'success');
                 form.reset();
                 break;
                 
             case 'createEventForm':
-                await apiRequest('/events', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-                
+                // Demo mode - this is handled in organizer dashboard
                 showAlert('Event created successfully! It will be reviewed by our team.', 'success');
                 form.reset();
                 break;
                 
             case 'bookingForm':
                 const eventId = new URLSearchParams(window.location.search).get('id');
-                await bookEvent(eventId, parseInt(data.tickets), {
-                    name: data.fullName,
-                    email: data.email,
-                    phone: data.phone
-                });
+                
+                // Demo booking - store locally
+                if (!currentUser) {
+                    showAlert('Please log in to book events.', 'warning');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                const bookings = JSON.parse(localStorage.getItem('userBookings') || '[]');
+                const newBooking = {
+                    bookingId: Date.now(),
+                    eventId: eventId,
+                    userId: currentUser.userId,
+                    quantity: parseInt(data.tickets),
+                    attendeeInfo: {
+                        name: data.fullName,
+                        email: data.email,
+                        phone: data.phone
+                    },
+                    bookingDate: new Date().toISOString(),
+                    status: 'confirmed',
+                    totalAmount: 0 // Will be calculated based on event price
+                };
+                
+                bookings.push(newBooking);
+                localStorage.setItem('userBookings', JSON.stringify(bookings));
+                
+                showAlert(`Successfully booked ${data.tickets} ticket(s)! Booking reference: ${newBooking.bookingId}`, 'success');
                 break;
                 
             default:
@@ -804,7 +881,18 @@ async function handleFormSubmission(formType, form) {
 async function checkAuth() {
     const token = localStorage.getItem('authToken');
     if (token) {
-        await fetchCurrentUser();
+        // In demo mode, get user from localStorage
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            currentUser = JSON.parse(storedUser);
+        } else {
+            // Fallback: try to fetch from registered users
+            const demoUsers = JSON.parse(localStorage.getItem('demoUsers') || '{}');
+            const userId = localStorage.getItem('userId');
+            if (userId) {
+                currentUser = Object.values(demoUsers).find(user => user.userId.toString() === userId);
+            }
+        }
     }
 }
 
