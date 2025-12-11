@@ -87,10 +87,42 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get categories endpoint
+router.get('/categories', async (req, res) => {
+    try {
+        const result = await database.query(`
+            SELECT 
+                CategoryId as categoryId,
+                Name as name,
+                Description as description,
+                IconClass as iconClass,
+                Color as color,
+                SortOrder as sortOrder
+            FROM [Events].[Categories]
+            ORDER BY SortOrder
+        `);
+        
+        res.json(result.recordset);
+    } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        res.status(500).json({
+            error: 'Failed to fetch categories'
+        });
+    }
+});
+
 // Get single event by ID
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        
+        // Validate GUID format
+        const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!guidRegex.test(id)) {
+            return res.status(400).json({
+                error: 'Invalid event ID format'
+            });
+        }
 
         const result = await database.query(`
             SELECT 
@@ -133,8 +165,8 @@ router.get('/:id', async (req, res) => {
             LEFT JOIN [Events].[Categories] c ON e.CategoryId = c.CategoryId
             LEFT JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
             LEFT JOIN [Users].[Users] u ON o.UserId = u.UserId
-            WHERE e.EventId = @eventId
-        `, { eventId: id });
+            WHERE e.EventId = @id
+        `, { id });
 
         if (result.recordset.length === 0) {
             return res.status(404).json({
@@ -144,6 +176,13 @@ router.get('/:id', async (req, res) => {
 
         const event = result.recordset[0];
 
+        // Update view count
+        await database.query(`
+            UPDATE [Events].[Events]
+            SET ViewCount = ISNULL(ViewCount, 0) + 1
+            WHERE EventId = @id
+        `, { id }).catch(err => console.error('Failed to update view count:', err));
+        
         // Get event tickets if any
         const ticketsResult = await database.query(`
             SELECT 
@@ -159,16 +198,9 @@ router.get('/:id', async (req, res) => {
                 IsActive as isActive,
                 SortOrder as sortOrder
             FROM [Events].[EventTickets]
-            WHERE EventId = @eventId AND IsActive = 1
+            WHERE EventId = @id AND IsActive = 1
             ORDER BY SortOrder
-        `, { eventId: id });
-
-        // Increment view count
-        await database.query(`
-            UPDATE [Events].[Events] 
-            SET ViewCount = ISNULL(ViewCount, 0) + 1 
-            WHERE EventId = @eventId
-        `, { eventId: id });
+        `, { id });
 
         // Format response
         const eventResponse = {

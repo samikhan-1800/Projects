@@ -114,30 +114,6 @@ app.post('/api/contact', async (req, res) => {
     }
 });
 
-// Categories endpoint
-app.get('/api/categories', async (req, res) => {
-    try {
-        const result = await database.query(`
-            SELECT 
-                CategoryId as categoryId,
-                Name as name,
-                Description as description,
-                IconClass as iconClass,
-                Color as color,
-                SortOrder as sortOrder
-            FROM [Events].[Categories]
-            ORDER BY SortOrder
-        `);
-        
-        res.json(result.recordset);
-    } catch (error) {
-        console.error('Failed to fetch categories:', error);
-        res.status(500).json({
-            error: 'Failed to fetch categories'
-        });
-    }
-});
-
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
