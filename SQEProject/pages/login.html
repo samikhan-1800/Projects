@@ -85,17 +85,21 @@
                 </div>
                 
                 <div class="text-center mt-4">
-                    <p class="text-muted">Demo Accounts:</p>
+                    <p class="text-muted">Test the system with demo accounts:</p>
                     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('user')">User Demo</button>
-                        <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('organizer')">Organizer Demo</button>
-                        <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('admin')">Admin Demo</button>
+                        <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('user')">
+                            <i class="fas fa-user"></i> User Demo
+                        </button>
+                        <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('organizer')">
+                            <i class="fas fa-calendar-plus"></i> Organizer Demo
+                        </button>
+                        <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('admin')">
+                            <i class="fas fa-user-shield"></i> Admin Demo
+                        </button>
                     </div>
-                    <div style="margin-top: 15px;">
-                        <button class="btn btn-small btn-success" onclick="directLogin('user')">Quick User Login</button>
-                        <button class="btn btn-small btn-success" onclick="directLogin('organizer')">Quick Organizer Login</button>
-                        <button class="btn btn-small btn-success" onclick="directLogin('admin')">Quick Admin Login</button>
-                    </div>
+                    <small class="text-muted" style="display: block; margin-top: 10px;">
+                        Click a button to fill credentials, then click "Sign In"
+                    </small>
                 </div>
             </div>
         </div>
@@ -170,82 +174,35 @@
 
     <script src="../js/main.js"></script>
     <script>
-        // Demo login functionality
+        // Demo login functionality - fills form with real account credentials
         function fillDemoLogin(type) {
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
             
+            // These are real accounts in the database
             switch(type) {
                 case 'user':
-                    emailInput.value = 'john@example.com';
-                    passwordInput.value = 'demo123';
+                    emailInput.value = 'john.doe@example.com';
+                    passwordInput.value = 'Password123!';
                     break;
                 case 'organizer':
-                    emailInput.value = 'jane@example.com';
-                    passwordInput.value = 'demo123';
+                    emailInput.value = 'jane.smith@example.com';
+                    passwordInput.value = 'Password123!';
                     break;
                 case 'admin':
                     emailInput.value = 'admin@eventhub.com';
-                    passwordInput.value = 'admin123';
+                    passwordInput.value = 'Admin@123';
                     break;
             }
             
             // Clear any existing errors
             document.querySelectorAll('.form-error').forEach(error => error.textContent = '');
             document.querySelectorAll('.form-control').forEach(input => input.classList.remove('error'));
-        }
-        
-        // Direct login bypass for testing
-        function directLogin(type) {
-            const users = {
-                'user': {
-                    userId: 1,
-                    email: 'john@example.com',
-                    firstName: 'John',
-                    lastName: 'Doe',
-                    userType: 'User'
-                },
-                'organizer': {
-                    userId: 2,
-                    email: 'jane@example.com',
-                    firstName: 'Jane',
-                    lastName: 'Smith',
-                    userType: 'Organizer'
-                },
-                'admin': {
-                    userId: 3,
-                    email: 'admin@eventhub.com',
-                    firstName: 'Admin',
-                    lastName: 'User',
-                    userType: 'Admin'
-                }
-            };
             
-            const user = users[type];
-            if (user) {
-                // Store authentication data
-                const token = 'demo-token-' + Date.now();
-                localStorage.setItem('authToken', token);
-                localStorage.setItem('userType', user.userType);
-                localStorage.setItem('userId', user.userId);
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                
-                // Show success message
-                if (window.showAlert) {
-                    window.showAlert('Quick login successful! Redirecting...', 'success');
-                } else {
-                    console.log('Login successful! Redirecting...');
-                }
-                
-                // Redirect to appropriate dashboard
-                setTimeout(() => {
-                    const redirectUrl = user.userType === 'Admin' ? 
-                        'admin-dashboard.html' : 
-                        user.userType === 'Organizer' ? 
-                        'organizer-dashboard.html' : 
-                        'user-dashboard.html';
-                    window.location.href = redirectUrl;
-                }, 1000);
+            // Auto-focus the sign in button
+            const signInBtn = document.querySelector('button[type="submit"]');
+            if (signInBtn) {
+                signInBtn.focus();
             }
         }
         
