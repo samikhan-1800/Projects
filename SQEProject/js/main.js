@@ -96,9 +96,24 @@ async function fetchEvents() {
         console.log('Fetching events from:', `${API_BASE_URL}/events`);
         events = await apiRequest('/events');
         console.log('Successfully fetched events:', events.length);
+        
+        // Store events in localStorage as backup
+        if (events && events.length > 0) {
+            localStorage.setItem('cachedEvents', JSON.stringify(events));
+        }
+        
         return events;
     } catch (error) {
         console.error('Failed to fetch events:', error);
+        
+        // Try to load from cache if API fails
+        const cached = localStorage.getItem('cachedEvents');
+        if (cached) {
+            console.log('Loading events from cache');
+            events = JSON.parse(cached);
+            return events;
+        }
+        
         return [];
     }
 }
@@ -135,24 +150,53 @@ async function loadFeaturedEvents() {
             featuredEventsContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading events...</div>';
             
             const allEvents = await fetchEvents();
-            console.log('Loaded events:', allEvents.length);
+            console.log('Loaded events for home page:', allEvents.length);
             
-            let eventsToShow = allEvents.filter(event => event.isFeatured).slice(0, 3);
+            // Filter for published events only
+            const publishedEvents = allEvents.filter(event => {
+                // Check if event is published and in the future
+                const eventDate = new Date(event.startDate);
+                const now = new Date();
+                return eventDate > now;
+            });
             
-            // If no featured events, show the first 3 events
+            console.log('Published future events:', publishedEvents.length);
+            
+            // Try to get featured events first
+            let eventsToShow = publishedEvents.filter(event => event.isFeatured).slice(0, 3);
+            
+            // If no featured events, show the first 3 published events
             if (eventsToShow.length === 0) {
-                console.log('No featured events found, showing first 3 events');
+                console.log('No featured events found, showing first 3 published events');
+                eventsToShow = publishedEvents.slice(0, 3);
+            }
+            
+            // If still no events, show any events (for testing)
+            if (eventsToShow.length === 0) {
+                console.log('No published events, showing first 3 events');
                 eventsToShow = allEvents.slice(0, 3);
             }
             
             if (eventsToShow.length > 0) {
                 featuredEventsContainer.innerHTML = eventsToShow.map(event => createEventCard(event, true)).join('');
             } else {
-                featuredEventsContainer.innerHTML = '<p class="text-center">No events available at the moment.</p>';
+                featuredEventsContainer.innerHTML = `
+                    <div class="text-center" style="grid-column: 1/-1;">
+                        <i class="fas fa-calendar-times" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
+                        <p>No events available at the moment.</p>
+                        <p>Check back soon for exciting upcoming events!</p>
+                    </div>
+                `;
             }
         } catch (error) {
             console.error('Failed to load featured events:', error);
-            featuredEventsContainer.innerHTML = '<p class="text-center text-danger">Unable to load events. Please check your connection and try again.</p>';
+            featuredEventsContainer.innerHTML = `
+                <div class="text-center text-danger" style="grid-column: 1/-1;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <p>Unable to load events. Please check your connection and try again.</p>
+                    <button class="btn btn-primary" onclick="loadFeaturedEvents()">Retry</button>
+                </div>
+            `;
         }
     }
 }
@@ -302,11 +346,29 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
+// Quick book from event card
+function quickBookEvent(eventId) {
+    if (!currentUser) {
+        showAlert('Please log in to book events.', 'warning');
+        setTimeout(() => {
+            window.location.href = window.location.pathname.includes('pages/') ? 'login.html' : 'pages/login.html';
+        }, 1500);
+        return;
+    }
+    
+    // Redirect to event detail page for booking
+    const detailUrl = window.location.pathname.includes('pages/') ? 
+        `event-detail.html?id=${eventId}` : 
+        `pages/event-detail.html?id=${eventId}`;
+    window.location.href = detailUrl;
+}
+
 // Event Booking
 async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}) {
     if (!currentUser) {
         showAlert('Please log in to book events.', 'warning');
-        window.location.href = 'pages/login.html';
+        const loginUrl = window.location.pathname.includes('pages/') ? 'login.html' : 'pages/login.html';
+        setTimeout(() => window.location.href = loginUrl, 1500);
         return;
     }
 
@@ -689,8 +751,21 @@ async function loadUserDashboard() {
                     <div class="events-grid">
                         ${upcomingEvents.length > 0 ? 
                             upcomingEvents.map(event => createEventCard(event)).join('') :
-                            '<p class="text-center">No upcoming events</p>'
+                            '<div class=\"text-center\" style=\"grid-column: 1/-1; padding: 2rem;\">' +
+                            '<i class=\"fas fa-calendar-times\" style=\"font-size: 3rem; color: #ccc; margin-bottom: 1rem;\"></i>' +
+                            '<p>You have no upcoming events</p>' +
+                            '<a href=\"events.html\" class=\"btn btn-primary\">Browse Events</a>' +
+                            '</div>'
                         }
+                    </div>
+                </div>
+                
+                <div class="dashboard-section" id="availableEventsSection">
+                    <h2>Available Events to Book</h2>
+                    <div class="events-grid" id="availableEventsGrid">
+                        <div class="text-center" style="grid-column: 1/-1;">
+                            <i class="fas fa-spinner fa-spin"></i> Loading events...
+                        </div>
                     </div>
                 </div>
                 
@@ -725,6 +800,41 @@ async function loadUserDashboard() {
                     </div>
                 </div>
             `;
+            
+            // Load available events for booking
+            setTimeout(async () => {
+                const availableEventsGrid = document.getElementById('availableEventsGrid');
+                if (availableEventsGrid) {
+                    try {
+                        const allEvents = await fetchEvents();
+                        // Filter out already booked events
+                        const bookedEventIds = bookings.map(b => b.eventId);
+                        const availableEvents = allEvents
+                            .filter(event => !bookedEventIds.includes(event.eventId))
+                            .filter(event => {
+                                const eventDate = new Date(event.startDate);
+                                return eventDate > new Date(); // Only future events
+                            })
+                            .slice(0, 6); // Show max 6 events
+                        
+                        if (availableEvents.length > 0) {
+                            availableEventsGrid.innerHTML = availableEvents.map(event => createEventCard(event)).join('');
+                        } else {
+                            availableEventsGrid.innerHTML = `
+                                <div class="text-center" style="grid-column: 1/-1; padding: 2rem;">
+                                    <i class="fas fa-check-circle" style="font-size: 3rem; color: #28a745; margin-bottom: 1rem;\"></i>
+                                    <p>You're all caught up! Check back later for new events.</p>
+                                    <a href="events.html" class="btn btn-primary">View All Events</a>
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        console.error('Failed to load available events:', error);
+                        availableEventsGrid.innerHTML = '<div class="text-center" style="grid-column: 1/-1;"><p>Failed to load events</p></div>';
+                    }
+                }
+            }, 500);
+            
         } catch (error) {
             console.error('Failed to load dashboard:', error);
             dashboardContent.innerHTML = '<p class="text-center">Unable to load dashboard. Please try again later.</p>';
@@ -1008,14 +1118,17 @@ function hostEvent() {
     window.location.href = 'pages/organizer-dashboard.html';
 }
 
-// Make hostEvent available globally
+// Make functions available globally
 window.hostEvent = hostEvent;
+window.quickBookEvent = quickBookEvent;
+window.loadFeaturedEvents = loadFeaturedEvents;
 
 // Export functions for use in other files
 window.EventHub = {
     createEventCard,
     filterEvents,
     bookEvent,
+    quickBookEvent,
     showAlert,
     validateForm,
     openModal,
@@ -1024,5 +1137,7 @@ window.EventHub = {
     fetchCurrentUser,
     logout,
     checkAuth,
-    apiRequest
+    apiRequest,
+    loadFeaturedEvents,
+    loadUserDashboard
 };
