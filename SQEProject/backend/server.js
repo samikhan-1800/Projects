@@ -150,11 +150,23 @@ app.use('*', (req, res) => {
 app.use((error, req, res, next) => {
     console.error('Unhandled error:', error);
     
-    res.status(error.status || 500).json({
+    // Check if headers were already sent
+    if (res.headersSent) {
+        return next(error);
+    }
+    
+    // Determine status code
+    const statusCode = error.statusCode || error.status || 500;
+    
+    // Send error response
+    res.status(statusCode).json({
         error: process.env.NODE_ENV === 'production' 
-            ? 'Internal server error' 
+            ? (statusCode === 500 ? 'Internal server error' : error.message)
             : error.message,
-        ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
+        ...(process.env.NODE_ENV !== 'production' && statusCode === 500 && { 
+            stack: error.stack,
+            details: error.toString()
+        })
     });
 });
 

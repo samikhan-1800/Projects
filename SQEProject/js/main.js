@@ -42,10 +42,38 @@ async function apiRequest(endpoint, options = {}) {
     try {
         const response = await fetch(url, config);
         
+        // Handle different status codes
+        if (response.status === 500) {
+            const errorData = await response.json().catch(() => ({ error: 'Internal server error' }));
+            console.error('Server Error 500:', errorData);
+            throw new Error(errorData.error || 'Server error occurred. Please try again later.');
+        }
+        
+        if (response.status === 401) {
+            // Unauthorized - clear auth and redirect to login
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            showAlert('Session expired. Please log in again.', 'warning');
+            if (!window.location.pathname.includes('login.html')) {
+                setTimeout(() => window.location.href = '/pages/login.html', 2000);
+            }
+            throw new Error('Unauthorized');
+        }
+        
+        if (response.status === 403) {
+            throw new Error('Access forbidden. You do not have permission.');
+        }
+        
+        if (response.status === 404) {
+            throw new Error('Resource not found.');
+        }
+        
         if (!response.ok) {
-            const errorData = await response.text();
+            const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
             console.error(`API Error ${response.status}:`, errorData);
-            throw new Error(`HTTP error! status: ${response.status} - ${errorData}`);
+            throw new Error(errorData.error || errorData.details || `Request failed with status ${response.status}`);
         }
         
         return await response.json();
@@ -53,9 +81,10 @@ async function apiRequest(endpoint, options = {}) {
         console.error('API request failed:', error);
         
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            showAlert('Cannot connect to server. Please ensure the backend is running on http://localhost:3000', 'danger');
-        } else {
-            showAlert(`Network error: ${error.message}`, 'danger');
+            showAlert('Cannot connect to server. Please ensure the backend is running.', 'danger');
+        } else if (error.message !== 'Unauthorized') {
+            // Don't show alert for unauthorized since we already handle that
+            showAlert(error.message || 'Request failed. Please try again.', 'danger');
         }
         throw error;
     }
@@ -713,72 +742,40 @@ async function handleFormSubmission(formType, form) {
     try {
         switch (formType) {
             case 'loginForm':
-                // Demo user authentication (no backend required)
-                const demoUsers = {
-                    'john@example.com': {
-                        userId: 1,
-                        email: 'john@example.com',
-                        firstName: 'John',
-                        lastName: 'Doe',
-                        userType: 'User',
-                        password: 'demo123'
-                    },
-                    'jane@example.com': {
-                        userId: 2,
-                        email: 'jane@example.com',
-                        firstName: 'Jane',
-                        lastName: 'Smith',
-                        userType: 'Organizer',
-                        password: 'demo123'
-                    },
-                    'admin@eventhub.com': {
-                        userId: 3,
-                        email: 'admin@eventhub.com',
-                        firstName: 'Admin',
-                        lastName: 'User',
-                        userType: 'Admin',
-                        password: 'admin123'
-                    }
-                };
-                
-                // Also check registered users from localStorage
-                const registeredUsers = JSON.parse(localStorage.getItem('demoUsers') || '{}');
-                const allUsers = { ...demoUsers, ...registeredUsers };
-                
-                console.log('Login attempt:', { email: data.email, password: data.password });
-                console.log('Available users:', Object.keys(allUsers));
-                
-                const user = allUsers[data.email];
-                if (!user) {
-                    showAlert('Email not found. Please check your email or use a demo account.', 'danger');
-                    return;
+                // Backend authentication
+                try {
+                    const loginResult = await apiRequest('/auth/login', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            email: data.email,
+                            password: data.password
+                        })
+                    });
+                    
+                    console.log('Login successful:', loginResult);
+                    
+                    // Store authentication data
+                    localStorage.setItem('authToken', loginResult.token);
+                    localStorage.setItem('userType', loginResult.user.userType);
+                    localStorage.setItem('userId', loginResult.user.userId);
+                    localStorage.setItem('currentUser', JSON.stringify(loginResult.user));
+                    currentUser = loginResult.user;
+                    
+                    showAlert('Login successful! Redirecting...', 'success');
+                    
+                    // Redirect to appropriate dashboard
+                    setTimeout(() => {
+                        const redirectUrl = loginResult.user.userType === 'Admin' ? 
+                            'admin-dashboard.html' : 
+                            loginResult.user.userType === 'Organizer' ? 
+                            'organizer-dashboard.html' : 
+                            'user-dashboard.html';
+                        window.location.href = redirectUrl;
+                    }, 1500);
+                } catch (error) {
+                    console.error('Login failed:', error);
+                    // Error already shown by apiRequest
                 }
-                
-                if (user.password !== data.password) {
-                    console.log('Password mismatch:', { expected: user.password, received: data.password });
-                    showAlert('Invalid password. Please check your password or use a demo account.', 'danger');
-                    return;
-                }
-                
-                // Store authentication data
-                const token = 'demo-token-' + Date.now();
-                localStorage.setItem('authToken', token);
-                localStorage.setItem('userType', user.userType);
-                localStorage.setItem('userId', user.userId);
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                currentUser = user;
-                
-                showAlert('Login successful! Redirecting...', 'success');
-                
-                // Redirect to appropriate dashboard
-                setTimeout(() => {
-                    const redirectUrl = user.userType === 'Admin' ? 
-                        'admin-dashboard.html' : 
-                        user.userType === 'Organizer' ? 
-                        'organizer-dashboard.html' : 
-                        'user-dashboard.html';
-                    window.location.href = redirectUrl;
-                }, 1500);
                 break;
                 
             case 'registerForm':
@@ -788,46 +785,44 @@ async function handleFormSubmission(formType, form) {
                     userRole = 'Organizer';
                 }
                 
-                // Demo registration - store user data locally
-                const existingUsers = JSON.parse(localStorage.getItem('demoUsers') || '{}');
-                
-                if (existingUsers[data.email]) {
-                    showAlert('Email already exists. Please use a different email or try logging in.', 'danger');
-                    return;
+                try {
+                    const registerData = {
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        email: data.email,
+                        password: data.password,
+                        phone: data.phone || null,
+                        userType: userRole
+                    };
+                    
+                    await apiRequest('/auth/register', {
+                        method: 'POST',
+                        body: JSON.stringify(registerData)
+                    });
+                    
+                    showAlert('Registration successful! You can now log in with your credentials.', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } catch (error) {
+                    console.error('Registration failed:', error);
+                    // Error already shown by apiRequest
                 }
-                
-                const newUser = {
-                    userId: Date.now(),
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    email: data.email,
-                    password: data.password,
-                    phone: data.phone,
-                    userType: userRole,
-                    createdAt: new Date().toISOString()
-                };
-                
-                existingUsers[data.email] = newUser;
-                localStorage.setItem('demoUsers', JSON.stringify(existingUsers));
-                
-                showAlert('Registration successful! You can now log in with your credentials.', 'success');
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 2000);
                 break;
                 
             case 'contactForm':
-                // Demo contact form - store message locally
-                const messages = JSON.parse(localStorage.getItem('contactMessages') || '[]');
-                messages.push({
-                    ...data,
-                    timestamp: new Date().toISOString(),
-                    id: Date.now()
-                });
-                localStorage.setItem('contactMessages', JSON.stringify(messages));
-                
-                showAlert('Thank you for your message! We will get back to you soon.', 'success');
-                form.reset();
+                try {
+                    await apiRequest('/contact', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    
+                    showAlert('Thank you for your message! We will get back to you soon.', 'success');
+                    form.reset();
+                } catch (error) {
+                    console.error('Contact form submission failed:', error);
+                    // Error already shown by apiRequest
+                }
                 break;
                 
             case 'createEventForm':
@@ -837,35 +832,42 @@ async function handleFormSubmission(formType, form) {
                 break;
                 
             case 'bookingForm':
-                const eventId = new URLSearchParams(window.location.search).get('id');
-                
-                // Demo booking - store locally
-                if (!currentUser) {
-                    showAlert('Please log in to book events.', 'warning');
-                    window.location.href = 'login.html';
-                    return;
+                try {
+                    const eventId = new URLSearchParams(window.location.search).get('id');
+                    
+                    if (!currentUser) {
+                        showAlert('Please log in to book events.', 'warning');
+                        setTimeout(() => window.location.href = 'login.html', 2000);
+                        return;
+                    }
+                    
+                    const bookingData = {
+                        eventId: eventId,
+                        quantity: parseInt(data.tickets),
+                        attendeeInfo: {
+                            name: data.fullName,
+                            email: data.email,
+                            phone: data.phone
+                        }
+                    };
+                    
+                    const result = await apiRequest('/bookings', {
+                        method: 'POST',
+                        body: JSON.stringify(bookingData)
+                    });
+                    
+                    showAlert(`Successfully booked ${data.tickets} ticket(s)! Booking reference: ${result.bookingReference}`, 'success');
+                    
+                    // Optionally redirect to user dashboard
+                    setTimeout(() => {
+                        if (confirm('Would you like to view your bookings?')) {
+                            window.location.href = 'user-dashboard.html';
+                        }
+                    }, 2000);
+                } catch (error) {
+                    console.error('Booking failed:', error);
+                    // Error already shown by apiRequest
                 }
-                
-                const bookings = JSON.parse(localStorage.getItem('userBookings') || '[]');
-                const newBooking = {
-                    bookingId: Date.now(),
-                    eventId: eventId,
-                    userId: currentUser.userId,
-                    quantity: parseInt(data.tickets),
-                    attendeeInfo: {
-                        name: data.fullName,
-                        email: data.email,
-                        phone: data.phone
-                    },
-                    bookingDate: new Date().toISOString(),
-                    status: 'confirmed',
-                    totalAmount: 0 // Will be calculated based on event price
-                };
-                
-                bookings.push(newBooking);
-                localStorage.setItem('userBookings', JSON.stringify(bookings));
-                
-                showAlert(`Successfully booked ${data.tickets} ticket(s)! Booking reference: ${newBooking.bookingId}`, 'success');
                 break;
                 
             default:
@@ -881,16 +883,23 @@ async function handleFormSubmission(formType, form) {
 async function checkAuth() {
     const token = localStorage.getItem('authToken');
     if (token) {
-        // In demo mode, get user from localStorage
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
-            currentUser = JSON.parse(storedUser);
-        } else {
-            // Fallback: try to fetch from registered users
-            const demoUsers = JSON.parse(localStorage.getItem('demoUsers') || '{}');
-            const userId = localStorage.getItem('userId');
-            if (userId) {
-                currentUser = Object.values(demoUsers).find(user => user.userId.toString() === userId);
+        try {
+            // Try to fetch current user from backend
+            const user = await apiRequest('/auth/me');
+            currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(user));
+        } catch (error) {
+            console.error('Failed to fetch current user:', error);
+            // Fall back to stored user if API call fails
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+            } else {
+                // Clear invalid auth
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userType');
             }
         }
     }
