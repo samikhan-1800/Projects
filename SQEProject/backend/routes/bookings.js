@@ -71,6 +71,30 @@ router.post('/', authenticateToken, async (req, res) => {
             });
         }
 
+        // Prevent organizers from booking their own events
+        const organizerCheck = await database.query(`
+            SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+        `, { userId });
+        
+        if (organizerCheck.recordset.length > 0 && organizerCheck.recordset[0].OrganizerId === event.OrganizerId) {
+            return res.status(403).json({
+                error: 'You cannot book your own event as an organizer'
+            });
+        }
+
+        // Check for duplicate bookings - prevent user from booking same event twice
+        const existingBooking = await database.query(`
+            SELECT BookingId, Status FROM [Events].[Bookings]
+            WHERE UserId = @userId AND EventId = @eventId AND Status != 'Cancelled'
+        `, { userId, eventId });
+        
+        if (existingBooking.recordset.length > 0) {
+            return res.status(400).json({
+                error: 'You have already booked this event',
+                existingBookingId: existingBooking.recordset[0].BookingId
+            });
+        }
+
         let ticketPrice = event.Price || 0;
         let ticketDetails = null;
 
@@ -333,14 +357,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
         const userId = req.user.userId;
         const { transactionId, paymentReceiptUrl, paymentStatus } = req.body;
 
+        console.log('Payment upload attempt:', { bookingId, userId, transactionId });
+
         // Verify user owns this booking
         const checkResult = await database.query(`
-            SELECT BookingId FROM [Events].[Bookings]
-            WHERE BookingId = @bookingId AND UserId = @userId
-        `, { bookingId, userId });
+            SELECT BookingId, UserId FROM [Events].[Bookings]
+            WHERE BookingId = @bookingId
+        `, { bookingId });
+
+        console.log('Booking check result:', checkResult.recordset);
 
         if (checkResult.recordset.length === 0) {
-            return res.status(403).json({ error: 'Unauthorized' });
+            console.log('Booking not found:', bookingId);
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        const booking = checkResult.recordset[0];
+        if (booking.UserId !== userId) {
+            console.log('User mismatch:', { bookingUserId: booking.UserId, requestUserId: userId });
+            return res.status(403).json({ error: 'Unauthorized to update this booking' });
         }
 
         await database.query(`
@@ -369,6 +404,40 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
         const { eventId, status } = req.query;
+        
+        console.log('=== ORGANIZER ATTENDEES REQUEST ===');
+        console.log('UserId from token:', userId);
+        
+        // First, check if this user is an organizer
+        const organizerCheck = await database.query(`
+            SELECT OrganizerId, OrgName FROM [Users].[Organizers] WHERE UserId = @userId
+        `, { userId });
+        
+        console.log('Organizer check result:', organizerCheck.recordset);
+        
+        if (organizerCheck.recordset.length === 0) {
+            console.log('ERROR: User is not an organizer');
+            return res.json([]);
+        }
+        
+        const organizerId = organizerCheck.recordset[0].OrganizerId;
+        console.log('Found OrganizerId:', organizerId);
+        
+        // Check how many events this organizer has
+        const eventsCheck = await database.query(`
+            SELECT EventId, Title FROM [Events].[Events] WHERE OrganizerId = @organizerId
+        `, { organizerId });
+        
+        console.log('Organizer has', eventsCheck.recordset.length, 'events');
+        
+        // Check total bookings for organizer's events
+        const bookingsCheck = await database.query(`
+            SELECT COUNT(*) as total FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+            WHERE e.OrganizerId = @organizerId
+        `, { organizerId });
+        
+        console.log('Total bookings for organizer events:', bookingsCheck.recordset[0].total);
 
         let query = `
             SELECT 
@@ -394,11 +463,9 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
             FROM [Events].[Bookings] b
             INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
             LEFT JOIN [Users].[Users] u ON b.UserId = u.UserId
-            WHERE e.OrganizerId = (
-                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
-            )`;
+            WHERE e.OrganizerId = @organizerId`;
 
-        const params = { userId };
+        const params = { organizerId };
 
         if (eventId) {
             query += ` AND b.EventId = @eventId`;
@@ -414,12 +481,27 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
 
         const result = await database.query(query, params);
 
+        console.log(`Found ${result.recordset.length} attendees`);
+        if (result.recordset.length > 0) {
+            console.log('Sample attendee:', {
+                bookingId: result.recordset[0].bookingId,
+                transactionId: result.recordset[0].transactionId,
+                paymentStatus: result.recordset[0].paymentStatus,
+                hasReceipt: !!result.recordset[0].paymentReceiptUrl
+            });
+        }
+
         const bookings = result.recordset.map(booking => ({
             ...booking,
             userName: `${booking.userFirstName || ''} ${booking.userLastName || ''}`.trim() || 'Guest',
             attendeeInfo: booking.attendeeInfo ? JSON.parse(booking.attendeeInfo) : null
         }));
 
+        // Set no-cache headers to prevent stale data
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        
         res.json(bookings);
     } catch (error) {
         console.error('Failed to fetch organizer attendees:', error);

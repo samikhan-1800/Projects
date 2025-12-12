@@ -611,8 +611,11 @@ function viewEventAnalytics(eventId) {
 async function loadAttendees(eventId = null) {
     try {
         const endpoint = eventId ? `/bookings/organizer/attendees?eventId=${eventId}` : '/bookings/organizer/attendees';
-        const response = await apiRequest(endpoint);
+        // Force fresh data by adding cache-busting parameter
+        const cacheBuster = `&_t=${Date.now()}`;
+        const response = await apiRequest(endpoint + (eventId ? cacheBuster : '?_t=' + Date.now()));
         
+        console.log('Loaded attendees:', response.length, 'records');
         allAttendees = Array.isArray(response) ? response : [];
         renderAttendees();
         

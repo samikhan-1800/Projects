@@ -625,7 +625,33 @@
                     .filter(event => event && new Date(event.startDate) > new Date());
                 
                 if (myEvents.length > 0) {
-                    myEventsGrid.innerHTML = myEvents.map(event => createEventCard(event, false)).join('');
+                    myEventsGrid.innerHTML = myEvents.map(event => {
+                        const eventDate = new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const eventTime = new Date(event.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        // Use ImageUrl property and handle base64 or URL
+                        const imageUrl = event.imageUrl || event.image || event.ImageUrl || '../images/default-event.jpg';
+                        const eventLocation = event.venueName || event.location || 'TBA';
+                        return `
+                            <div class="event-card">
+                                <div class="event-image" style="background-image: url('${imageUrl}'); background-size: cover; background-position: center;">
+                                    ${event.isFree ? '<span class="event-badge">Free</span>' : ''}
+                                </div>
+                                <div class="event-content">
+                                    <h3>${event.title || 'Event'}</h3>
+                                    <div class="event-meta">
+                                        <span><i class="fas fa-calendar"></i> ${eventDate}</span>
+                                        <span><i class="fas fa-clock"></i> ${eventTime}</span>
+                                        <span><i class="fas fa-map-marker-alt"></i> ${eventLocation}</span>
+                                    </div>
+                                    <p class="event-description">${(event.description || 'No description available').substring(0, 100)}...</p>
+                                    <div class="event-footer">
+                                        <span class="event-price">${event.isFree ? 'Free' : '$' + (event.price || 0)}</span>
+                                        <a href="event-detail.html?id=${event.eventId}" class="btn btn-primary btn-small">View Details</a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 } else {
                     myEventsGrid.innerHTML = `
                         <div class="text-center" style="grid-column: 1 / -1; padding: 40px;">
@@ -888,7 +914,7 @@
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                     },
                     body: JSON.stringify({
                         transactionId: transactionId,

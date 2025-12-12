@@ -1,5 +1,31 @@
 # EventHub System - Complete Setup & Fixes
 
+## Latest Update: December 13, 2025 - Error Handling & Bug Fixes
+
+## ✅ Recent Fixes (December 13, 2025)
+
+### 1. Organizer Self-Booking Prevention ✅
+**Issue:** Organizers could book their own events  
+**Solution:** 
+- Added backend validation to prevent organizers from booking their own events
+- Returns proper error: "You cannot book your own event as an organizer"
+- Frontend displays user-friendly error message
+
+### 2. Payment Data Not Showing in Organizer Dashboard ✅
+**Issue:** User payment uploads weren't appearing in organizer attendees list  
+**Solution:**
+- Fixed SQL query with `TOP 1` for organizer lookup
+- Excluded cancelled bookings from attendees list
+- Payment proof now displays correctly with transaction ID and receipt
+
+### 3. View Details Error in User Dashboard ✅
+**Issue:** "My Events" section threw JavaScript error on view details  
+**Solution:**
+- Replaced missing `createEventCard()` function with inline HTML generation
+- Event cards now render properly with images, dates, and working links
+
+---
+
 ## ✅ All Issues Fixed
 
 ### 1. Backend Connection Issues - RESOLVED

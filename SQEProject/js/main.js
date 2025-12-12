@@ -442,6 +442,16 @@ async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}, transac
         const result = await apiRequest('/bookings', {
             method: 'POST',
             body: JSON.stringify(bookingData)
+        }).catch(error => {
+            // Handle specific error for organizer booking own event
+            if (error.message && error.message.includes('own event')) {
+                throw new Error('As an organizer, you cannot book your own events.');
+            }
+            // Handle duplicate booking error
+            if (error.message && error.message.includes('already booked')) {
+                throw new Error('You have already booked this event. Check your booking history.');
+            }
+            throw error;
         });
 
         showAlert(`Booking created successfully! Reference: ${result.booking?.bookingReference || result.bookingReference}. Please upload payment proof in your dashboard to confirm.`, 'success');
@@ -457,7 +467,9 @@ async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}, transac
         return result;
     } catch (error) {
         console.error('Booking failed:', error);
-        showAlert('Booking failed. Please try again.', 'danger');
+        const errorMessage = error.message || 'Booking failed. Please try again.';
+        showAlert(errorMessage, 'danger');
+        return null;
     }
 }
 
