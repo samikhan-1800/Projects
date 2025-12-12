@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events - EventHub</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-calendar-alt"></i>
+                <a href="../index.html" style="color: inherit; text-decoration: none;">EventHub</a>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="events.html" class="nav-link active">Events</a>
+                <a href="about.html" class="nav-link">About</a>
+                <a href="contact.html" class="nav-link">Contact</a>
+                <div class="nav-auth">
+                    <a href="login.html" class="btn btn-outline">Login</a>
+                    <a href="register.html" class="btn btn-primary">Register</a>
+                </div>
+            </div>
+            <div class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" style="padding: 120px 0 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title" style="font-size: 2.5rem;">Discover Amazing Events</h1>
+                <p class="hero-subtitle">Find the perfect event for every occasion</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Filters Section -->
+    <section style="padding: 40px 0; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div class="container">
+            <div class="filters-container" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+                <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+                    <input type="text" id="eventSearch" class="form-control" placeholder="Search events, venues, or organizers...">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select id="categoryFilter" class="form-control">
+                        <option value="">All Categories</option>
+                        <option value="technology">Technology</option>
+                        <option value="music">Music</option>
+                        <option value="business">Business</option>
+                        <option value="art">Art</option>
+                        <option value="sports">Sports</option>
+                        <option value="food">Food & Wine</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select id="priceFilter" class="form-control">
+                        <option value="">Any Price</option>
+                        <option value="0-50">Under Rs. 5,000</option>
+                        <option value="50-100">Rs. 5,000 - Rs. 10,000</option>
+                        <option value="100-200">Rs. 10,000 - Rs. 20,000</option>
+                        <option value="200-">Over Rs. 20,000</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select id="sortFilter" class="form-control">
+                        <option value="date-asc">Date (Earliest First)</option>
+                        <option value="date-desc">Date (Latest First)</option>
+                        <option value="price-asc">Price (Low to High)</option>
+                        <option value="price-desc">Price (High to Low)</option>
+                        <option value="popularity">Most Popular</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-outline" onclick="clearFilters()">
+                    <i class="fas fa-times"></i> Clear Filters
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Events Section -->
+    <section style="padding: 60px 0; background: #f8f9fa;">
+        <div class="container">
+            <div class="section-header" style="margin-bottom: 40px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>All Events</h2>
+                        <p id="eventsCount">Showing all events</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-outline" id="gridViewBtn" onclick="toggleView('grid')">
+                            <i class="fas fa-th"></i> Grid
+                        </button>
+                        <button class="btn btn-outline" id="listViewBtn" onclick="toggleView('list')">
+                            <i class="fas fa-list"></i> List
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Container -->
+            <div class="events-grid" id="eventsContainer">
+                <!-- Events will be loaded by JavaScript -->
+            </div>
+
+            <!-- Load More Button -->
+            <div class="text-center mt-5">
+                <button class="btn btn-primary" id="loadMoreBtn" onclick="loadMoreEvents()">
+                    Load More Events
+                </button>
+            </div>
+
+            <!-- No Events Found -->
+            <div id="noEventsFound" class="text-center" style="display: none; padding: 60px 20px;">
+                <i class="fas fa-search" style="font-size: 4rem; color: #ccc; margin-bottom: 20px;"></i>
+                <h3>No Events Found</h3>
+                <p>We couldn't find any events matching your criteria. Try adjusting your filters or search terms.</p>
+                <button class="btn btn-primary" onclick="clearFilters()">Clear Filters</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section style="padding: 80px 0; background: white;">
+        <div class="container">
+            <div class="section-header">
+                <h2>Browse by Category</h2>
+                <p>Explore events by your interests</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card" onclick="filterByCategory('technology')">
+                    <div class="feature-icon">
+                        <i class="fas fa-laptop-code"></i>
+                    </div>
+                    <h3>Technology</h3>
+                    <p>Conferences, workshops, and tech meetups</p>
+                </div>
+                
+                <div class="feature-card" onclick="filterByCategory('music')">
+                    <div class="feature-icon">
+                        <i class="fas fa-music"></i>
+                    </div>
+                    <h3>Music</h3>
+                    <p>Concerts, festivals, and live performances</p>
+                </div>
+                
+                <div class="feature-card" onclick="filterByCategory('business')">
+                    <div class="feature-icon">
+                        <i class="fas fa-briefcase"></i>
+                    </div>
+                    <h3>Business</h3>
+                    <p>Networking, seminars, and pitch events</p>
+                </div>
+                
+                <div class="feature-card" onclick="filterByCategory('art')">
+                    <div class="feature-icon">
+                        <i class="fas fa-palette"></i>
+                    </div>
+                    <h3>Art</h3>
+                    <p>Exhibitions, galleries, and creative workshops</p>
+                </div>
+                
+                <div class="feature-card" onclick="filterByCategory('sports')">
+                    <div class="feature-icon">
+                        <i class="fas fa-running"></i>
+                    </div>
+                    <h3>Sports</h3>
+                    <p>Tournaments, marathons, and sporting events</p>
+                </div>
+                
+                <div class="feature-card" onclick="filterByCategory('food')">
+                    <div class="feature-icon">
+                        <i class="fas fa-wine-glass-alt"></i>
+                    </div>
+                    <h3>Food & Wine</h3>
+                    <p>Tastings, festivals, and culinary experiences</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-brand">
+                        <i class="fas fa-calendar-alt"></i>
+                        EventHub
+                    </div>
+                    <p>Your premier event management platform for creating unforgettable experiences.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="events.html">Events</a></li>
+                        <li><a href="about.html">About</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>For Organizers</h4>
+                    <ul>
+                        <li><a href="#" onclick="hostEvent()">Create Event</a></li>
+                        <li><a href="#">Pricing</a></li>
+                        <li><a href="#">Resources</a></li>
+                        <li><a href="#">Support</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Connect</h4>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 EventHub. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        let currentEvents = [];
+        let filteredEvents = [];
+        let currentPage = 1;
+        const eventsPerPage = 6;
+        let currentView = 'grid';
+        let allCategories = [];
+
+        // Initialize events page
+        document.addEventListener('DOMContentLoaded', async () => {
+            showLoading(true);
+            
+            // Update navigation based on auth status (don't wait for it)
+            updateNavigationAuth();
+            
+            await loadAllEvents();
+            await loadEventCategories();
+            setupEventListeners();
+            showLoading(false);
+        });
+
+        // Update navigation to show logged-in user
+        function updateNavigationAuth() {
+            const navAuth = document.querySelector('.nav-auth');
+            const token = localStorage.getItem('authToken');
+            const storedUser = localStorage.getItem('currentUser');
+            
+            if (token && storedUser && navAuth) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    const userType = localStorage.getItem('userType');
+                    const dashboardUrl = userType === 'Admin' ? 'admin-dashboard.html' : 
+                                        userType === 'Organizer' ? 'organizer-dashboard.html' : 
+                                        'user-dashboard.html';
+                    
+                    navAuth.innerHTML = `
+                        <span style="color: white; margin-right: 10px;">Welcome, ${user.firstName || 'User'}!</span>
+                        <a href="${dashboardUrl}" class="btn btn-outline">Dashboard</a>
+                        <button onclick="handleLogout()" class="btn btn-primary">Logout</button>
+                    `;
+                } catch (e) {
+                    console.error('Error parsing stored user:', e);
+                }
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            window.location.href = '../index.html';
+        }
+
+        async function loadAllEvents() {
+            try {
+                currentEvents = await fetchEvents();
+                filteredEvents = [...currentEvents];
+                displayEvents();
+                updateEventsCount();
+            } catch (error) {
+                console.error('Failed to load events:', error);
+                showNoEventsMessage('Failed to load events. Please try again later.');
+            }
+        }
+
+        async function loadEventCategories() {
+            try {
+                const categories = await apiRequest('/events/categories');
+                allCategories = categories;
+                populateCategoryFilter(categories);
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        function populateCategoryFilter(categories) {
+            const categoryFilter = document.getElementById('categoryFilter');
+            categoryFilter.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.name.toLowerCase();
+                option.textContent = category.name;
+                categoryFilter.appendChild(option);
+            });
+        }
+
+        function setupEventListeners() {
+            document.getElementById('eventSearch').addEventListener('input', applyFilters);
+            document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+            document.getElementById('priceFilter').addEventListener('change', applyFilters);
+            document.getElementById('sortFilter').addEventListener('change', applyFilters);
+        }
+
+        function showLoading(show) {
+            const container = document.getElementById('eventsContainer');
+            if (show) {
+                container.innerHTML = '<div class="text-center" style="padding: 60px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading events...</p></div>';
+            }
+        }
+
+        function showNoEventsMessage(message) {
+            const container = document.getElementById('eventsContainer');
+            const noEventsDiv = document.getElementById('noEventsFound');
+            container.style.display = 'none';
+            noEventsDiv.style.display = 'block';
+            noEventsDiv.querySelector('p').textContent = message;
+        }
+
+        function displayEvents() {
+            const container = document.getElementById('eventsContainer');
+            const noEventsDiv = document.getElementById('noEventsFound');
+            
+            if (filteredEvents.length === 0) {
+                container.style.display = 'none';
+                noEventsDiv.style.display = 'block';
+                document.getElementById('loadMoreBtn').style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'grid';
+            noEventsDiv.style.display = 'none';
+            
+            const startIndex = 0;
+            const endIndex = currentPage * eventsPerPage;
+            const eventsToShow = filteredEvents.slice(startIndex, endIndex);
+            
+            if (currentView === 'grid') {
+                container.className = 'events-grid';
+                container.innerHTML = eventsToShow.map(event => 
+                    createEventCard(event, false)
+                ).join('');
+            } else {
+                container.className = 'events-list';
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.gap = '20px';
+                container.innerHTML = eventsToShow.map(event => 
+                    createEventListItem(event)
+                ).join('');
+            }
+            
+            // Show/hide load more button
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (endIndex >= filteredEvents.length) {
+                loadMoreBtn.style.display = 'none';
+            } else {
+                loadMoreBtn.style.display = 'block';
+            }
+        }
+
+        function createEventListItem(event) {
+            const formattedDate = new Date(event.startDate).toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+
+            const formattedTime = new Date(event.startDate).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const availableSeats = event.capacity - (event.bookingCount || 0);
+            const eventImage = event.featuredImageUrl ? 
+                `<img src="${event.featuredImageUrl}" alt="${event.title}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />` : 
+                `<i class="fas fa-calendar-alt"></i>`;
+
+            return `
+                <div class="card" style="padding: 30px;">
+                    <div style="display: flex; gap: 30px; align-items: center;">
+                        <div class="event-image" style="width: 120px; height: 120px; flex-shrink: 0; border-radius: 8px; overflow: hidden;">
+                            ${eventImage}
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="event-title">${event.title}</h3>
+                            <div class="event-details">
+                                <div class="event-detail">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>${formattedDate}</span>
+                                </div>
+                                <div class="event-detail">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${formattedTime}</span>
+                                </div>
+                                <div class="event-detail">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${event.isOnline ? 'Online Event' : event.venueName || 'TBA'}</span>
+                                </div>
+                                <div class="event-detail">
+                                    <i class="fas fa-users"></i>
+                                    <span>${availableSeats}/${event.capacity} available</span>
+                                </div>
+                            </div>
+                            <p style="margin: 15px 0; color: #666;">${(event.shortDescription || event.description || '').substring(0, 150)}...</p>
+                        </div>
+                        <div style="text-align: center; flex-shrink: 0;">
+                            <div class="event-price" style="margin-bottom: 20px;">
+                                ${event.isFree ? 'Free' : `Rs. ${event.price}`}
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <a href="event-detail.html?id=${event.eventId}" class="btn btn-outline">View Details</a>
+                                <button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
+                                    ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('eventSearch').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value.toLowerCase();
+            const priceRange = document.getElementById('priceFilter').value;
+            const sortBy = document.getElementById('sortFilter').value;
+            
+            // Filter events
+            filteredEvents = currentEvents.filter(event => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    event.title.toLowerCase().includes(searchTerm) ||
+                    (event.description && event.description.toLowerCase().includes(searchTerm)) ||
+                    (event.venueName && event.venueName.toLowerCase().includes(searchTerm)) ||
+                    (event.organizerName && event.organizerName.toLowerCase().includes(searchTerm));
+                
+                // Category filter
+                const matchesCategory = !category || 
+                    (event.categoryName && event.categoryName.toLowerCase() === category);
+                
+                // Price filter
+                let matchesPrice = true;
+                if (priceRange) {
+                    const price = event.price || 0;
+                    const [min, max] = priceRange.split('-').map(p => p === '' ? Infinity : parseFloat(p));
+                    if (max === undefined) {
+                        matchesPrice = price >= min;
+                    } else {
+                        matchesPrice = price >= min && price <= max;
+                    }
+                }
+                
+                return matchesSearch && matchesCategory && matchesPrice;
+            });
+            
+            // Sort events
+            sortEvents(sortBy);
+            
+            // Reset pagination
+            currentPage = 1;
+            
+            // Display results
+            displayEvents();
+            updateEventsCount();
+        }
+
+        function sortEvents(sortBy) {
+            switch(sortBy) {
+                case 'date-asc':
+                    filteredEvents.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+                    break;
+                case 'date-desc':
+                    filteredEvents.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+                    break;
+                case 'price-asc':
+                    filteredEvents.sort((a, b) => (a.price || 0) - (b.price || 0));
+                    break;
+                case 'price-desc':
+                    filteredEvents.sort((a, b) => (b.price || 0) - (a.price || 0));
+                    break;
+                case 'popularity':
+                    filteredEvents.sort((a, b) => (b.bookingCount || 0) - (a.bookingCount || 0));
+                    break;
+            }
+        }
+
+        function updateEventsCount() {
+            const countElement = document.getElementById('eventsCount');
+            const showing = Math.min(currentPage * eventsPerPage, filteredEvents.length);
+            countElement.textContent = `Showing ${showing} of ${filteredEvents.length} events`;
+        }
+
+        function clearFilters() {
+            document.getElementById('eventSearch').value = '';
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('priceFilter').value = '';
+            document.getElementById('sortFilter').value = 'date-asc';
+            
+            filteredEvents = [...currentEvents];
+            currentPage = 1;
+            displayEvents();
+            updateEventsCount();
+        }
+
+        function filterByCategory(category) {
+            document.getElementById('categoryFilter').value = category;
+            applyFilters();
+            
+            // Scroll to events section
+            document.getElementById('eventsContainer').scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+
+        function toggleView(view) {
+            currentView = view;
+            
+            // Update button states
+            document.getElementById('gridViewBtn').classList.toggle('btn-primary', view === 'grid');
+            document.getElementById('gridViewBtn').classList.toggle('btn-outline', view !== 'grid');
+            document.getElementById('listViewBtn').classList.toggle('btn-primary', view === 'list');
+            document.getElementById('listViewBtn').classList.toggle('btn-outline', view !== 'list');
+            
+            displayEvents();
+        }
+
+        function loadMoreEvents() {
+            currentPage++;
+            displayEvents();
+            updateEventsCount();
+        }
+
+        // Override the bookEvent function to handle UI updates
+        window.bookEvent = function(eventId) {
+            const event = currentEvents.find(e => e.eventId === eventId);
+            if (!event) return;
+
+            const availableSeats = event.capacity - (event.bookingCount || 0);
+            if (availableSeats <= 0) {
+                showAlert('Sorry, this event is sold out!', 'danger');
+                return;
+            }
+
+            // Check if user is logged in
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                showAlert('Please log in to book events.', 'info');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
+
+            // Redirect to event detail page for booking
+            window.location.href = `event-detail.html?id=${eventId}`;
+        };
+
+        // Add authentication check for host event functionality
+        window.hostEvent = function() {
+            const token = localStorage.getItem('authToken');
+            const userType = localStorage.getItem('userType');
+            
+            if (!token) {
+                showAlert('Please log in to host events.', 'info');
+                setTimeout(() => {
+                    window.location.href = 'login.html?redirect=host';
+                }, 1500);
+                return;
+            }
+            
+            if (userType === 'User') {
+                showAlert('Only organizers can host events. Please contact support to upgrade your account.', 'warning');
+                return;
+            }
+            
+            window.location.href = 'organizer-dashboard.html';
+        };
+    </script>
+</body>
+</html>

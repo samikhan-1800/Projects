@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - EventHub</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-calendar-alt"></i>
+                <a href="../index.html" style="color: inherit; text-decoration: none;">EventHub</a>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="events.html" class="nav-link">Events</a>
+                <a href="about.html" class="nav-link">About</a>
+                <a href="contact.html" class="nav-link">Contact</a>
+                <div class="nav-auth">
+                    <!-- Will be updated dynamically by JavaScript -->
+                    <a href="login.html" class="btn btn-outline">Login</a>
+                    <a href="register.html" class="btn btn-primary">Register</a>
+                </div>
+            </div>
+            <div class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard" class="active" onclick="showSection('dashboard')">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a></li>
+                <li><a href="#my-events" onclick="showSection('my-events')">
+                    <i class="fas fa-calendar-check"></i> My Events
+                </a></li>
+                <li><a href="#booking-history" onclick="showSection('booking-history')">
+                    <i class="fas fa-history"></i> Booking History
+                </a></li>
+                <li><a href="#profile" onclick="showSection('profile')">
+                    <i class="fas fa-user"></i> Profile
+                </a></li>
+                <li><a href="#settings" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i> Settings
+                </a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Dashboard Overview -->
+            <div id="dashboard-section" class="dashboard-section active">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p id="welcomeMessage">Welcome back! Here's your event overview.</p>
+                    </div>
+                    <a href="events.html" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Book New Event
+                    </a>
+                </div>
+
+                <div id="dashboardContent">
+                    <!-- Content will be loaded by JavaScript -->
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="dashboard-section">
+                    <h2>Quick Actions</h2>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <h3>Browse Events</h3>
+                            <p>Discover amazing events happening near you</p>
+                            <a href="events.html" class="btn btn-primary">Browse Now</a>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <h3>My Favorites</h3>
+                            <p>View your saved and favorite events</p>
+                            <button class="btn btn-primary" onclick="showSection('favorites')">View Favorites</button>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-share-alt"></i>
+                            </div>
+                            <h3>Refer Friends</h3>
+                            <p>Invite friends and earn rewards</p>
+                            <button class="btn btn-primary" onclick="openModal('referralModal')">Invite Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Events Section -->
+            <div id="my-events-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>My Events</h1>
+                        <p>Events you have booked</p>
+                    </div>
+                </div>
+
+                <div class="events-grid" id="myEventsGrid">
+                    <!-- Events will be loaded by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Booking History Section -->
+            <div id="booking-history-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Booking History</h1>
+                        <p>All your past and present event bookings</p>
+                    </div>
+                    <button class="btn btn-outline" onclick="downloadBookingHistory()">
+                        <i class="fas fa-download"></i> Download Report
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="table" id="bookingHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Date</th>
+                                <th>Booking Date</th>
+                                <th>Tickets</th>
+                                <th>Amount</th>
+                                <th>Payment Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookingHistoryBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px;">Loading bookings...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profile-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>My Profile</h1>
+                        <p>Manage your personal information</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <form id="profileForm">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group">
+                                <label class="form-label">First Name</label>
+                                <input type="text" class="form-control" name="firstName" id="profileFirstName" placeholder="Your first name" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" class="form-control" name="lastName" id="profileLastName" placeholder="Your last name" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" class="form-control" name="email" id="profileEmail" placeholder="Your email address" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" name="phone" id="profilePhone" placeholder="Your phone number">
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Website</label>
+                                <input type="url" class="form-control" name="website" id="profileWebsite" placeholder="https://yourwebsite.com">
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Avatar URL</label>
+                                <input type="url" class="form-control" name="avatarUrl" id="profileAvatarUrl" placeholder="https://example.com/avatar.jpg">
+                                <div class="form-error"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-control" name="bio" id="profileBio" rows="4" placeholder="Tell us about yourself...">Event enthusiast and tech professional who loves discovering new experiences and networking opportunities.</textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                            <button type="button" class="btn btn-outline">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings-section" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Settings</h1>
+                        <p>Manage your account preferences</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Notification Preferences</h3>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="emailNotifications" checked>
+                            <label for="emailNotifications">Email notifications for new events</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="eventReminders" checked>
+                            <label for="eventReminders">Event reminders</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="newsletterSubscription" checked>
+                            <label for="newsletterSubscription">Weekly newsletter</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="smsNotifications">
+                            <label for="smsNotifications">SMS notifications</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Privacy Settings</h3>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="profileVisibility" checked>
+                            <label for="profileVisibility">Make my profile visible to other users</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="dataSharing">
+                            <label for="dataSharing">Share anonymized data for analytics</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Account Actions</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="changePassword()">Change Password</button>
+                        <button class="btn btn-outline" onclick="downloadData()">Download My Data</button>
+                        <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Referral Modal -->
+    <div id="referralModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('referralModal')">&times;</button>
+            <h2>Refer Friends</h2>
+            <p>Share EventHub with your friends and earn rewards!</p>
+            
+            <div class="form-group">
+                <label class="form-label">Your Referral Code</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" class="form-control" value="JOHN2025" readonly>
+                    <button class="btn btn-outline" onclick="copyReferralCode()">Copy</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Share via Email</label>
+                <input type="email" class="form-control" placeholder="Friend's email address">
+                <button class="btn btn-primary mt-2" onclick="sendReferralEmail()">Send Invitation</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Share on Social Media</label>
+                <div style="display: flex; gap: 15px;">
+                    <button class="btn btn-outline"><i class="fab fa-facebook"></i> Facebook</button>
+                    <button class="btn btn-outline"><i class="fab fa-twitter"></i> Twitter</button>
+                    <button class="btn btn-outline"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        // currentUser and userBookings are defined in main.js
+        // Don't redeclare them here
+
+        // Check auth and load user data on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeDashboard();
+        });
+
+        async function initializeDashboard() {
+            // Use shared helpers if available
+            const getToken = (typeof StorageHelper !== 'undefined') ? 
+                StorageHelper.getAuthToken.bind(StorageHelper) : 
+                () => localStorage.getItem('authToken');
+            
+            // Check if user is logged in
+            const token = getToken();
+            if (!token) {
+                showAlert('Please log in to access your dashboard.', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
+
+            try {
+                // Fetch current user from API
+                currentUser = await apiRequest('/auth/me', { requireAuth: true });
+                
+                if (!currentUser) {
+                    throw new Error('Failed to load user data');
+                }
+
+                // Update navigation with user name - use shared helper if available
+                if (typeof NavigationHelper !== 'undefined') {
+                    NavigationHelper.updateNavigation();
+                } else {
+                    updateLocalNavigation();
+                }
+                
+                // Update welcome message
+                updateWelcomeMessage();
+                
+                // Load dashboard content
+                await loadUserDashboard();
+                
+            } catch (error) {
+                console.error('Failed to initialize dashboard:', error);
+                // If auth fails, redirect to login
+                if (typeof StorageHelper !== 'undefined') {
+                    StorageHelper.clearAuth();
+                } else {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                }
+                showAlert('Session expired. Please log in again.', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+            }
+        }
+
+        function updateLocalNavigation() {
+            var navAuth = document.querySelector('.nav-auth');
+            if (navAuth && currentUser) {
+                var userName = currentUser.firstName || currentUser.name || 'User';
+                navAuth.innerHTML = '<div style="display: flex; align-items: center; gap: 15px;"><span style="color: white;">Welcome, ' + escapeText(userName) + '!</span><button class="btn btn-outline btn-small" onclick="logout()">Logout</button></div>';
+            }
+        }
+        
+        function updateWelcomeMessage() {
+            var welcomeMessage = document.getElementById('welcomeMessage');
+            if (welcomeMessage && currentUser) {
+                var userName = currentUser.firstName || currentUser.name || 'User';
+                welcomeMessage.textContent = 'Welcome back, ' + userName + '! Here is your event overview.';
+            }
+        }
+
+        async function loadUserDashboard() {
+            const dashboardContent = document.getElementById('dashboardContent');
+            
+            try {
+                userBookings = await apiRequest('/bookings/my', { requireAuth: true }).catch(function() { return []; });
+                const allEvents = await fetchEvents().catch(function() { return []; });
+                
+                const upcomingBookings = userBookings.filter(function(booking) {
+                    const event = allEvents.find(function(e) { return e.eventId === booking.eventId; });
+                    return event && new Date(event.startDate) > new Date();
+                });
+
+                const notifications = await apiRequest('/notifications/unread', { requireAuth: true }).catch(function() { return []; });
+                const notifCount = Array.isArray(notifications) ? notifications.length : 0;
+
+                dashboardContent.innerHTML = '';
+                
+                // Stats section
+                const statsDiv = document.createElement('div');
+                statsDiv.className = 'dashboard-stats';
+                statsDiv.innerHTML = '<div class="stat-card"><div class="stat-card-icon"><i class="fas fa-ticket-alt"></i></div><div class="stat-card-value">' + upcomingBookings.length + '</div><div class="stat-card-label">Upcoming Events</div></div>' +
+                    '<div class="stat-card"><div class="stat-card-icon"><i class="fas fa-history"></i></div><div class="stat-card-value">' + userBookings.length + '</div><div class="stat-card-label">Total Bookings</div></div>' +
+                    '<div class="stat-card"><div class="stat-card-icon"><i class="fas fa-bell"></i></div><div class="stat-card-value">' + notifCount + '</div><div class="stat-card-label">Notifications</div></div>';
+                dashboardContent.appendChild(statsDiv);
+                
+                // Upcoming events section
+                const eventsSection = document.createElement('div');
+                eventsSection.className = 'dashboard-section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = 'Your Upcoming Events';
+                eventsSection.appendChild(heading);
+                
+                const eventsGrid = document.createElement('div');
+                eventsGrid.className = 'events-grid';
+                eventsGrid.id = 'upcomingEventsGrid';
+                
+                if (upcomingBookings.length > 0) {
+                    upcomingBookings.slice(0, 3).forEach(function(booking) {
+                        const event = allEvents.find(function(e) { return e.eventId === booking.eventId; });
+                        if (event) {
+                            event.bookingInfo = booking;
+                            eventsGrid.appendChild(createEventCard(event));
+                        }
+                    });
+                } else {
+                    eventsGrid.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem;"><i class="fas fa-calendar-times" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i><p>You have no upcoming events</p><a href="events.html" class="btn btn-primary">Browse Events</a></div>';
+                }
+                
+                eventsSection.appendChild(eventsGrid);
+                dashboardContent.appendChild(eventsSection);
+                
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                dashboardContent.innerHTML = '<p class="text-center">Unable to load dashboard. Please try again later.</p>';
+            }
+        }
+
+        // Dashboard section management
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from all sidebar links
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            const section = document.getElementById(sectionName + '-section');
+            if (section) {
+                section.classList.add('active');
+            }
+            
+            // Add active class to clicked link
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            // Load section-specific content
+            switch(sectionName) {
+                case 'dashboard':
+                    loadUserDashboard();
+                    break;
+                case 'my-events':
+                    loadMyEvents();
+                    break;
+                case 'booking-history':
+                    loadBookingHistory();
+                    break;
+                case 'profile':
+                    loadProfileData();
+                    break;
+            }
+        }
+
+        async function loadMyEvents() {
+            const myEventsGrid = document.getElementById('myEventsGrid');
+            if (!myEventsGrid) return;
+            
+            myEventsGrid.innerHTML = '<div class="text-center" style="grid-column: 1/-1;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            
+            try {
+                const bookings = await apiRequest('/bookings/my', { requireAuth: true }).catch(() => []);
+                const allEvents = await fetchEvents().catch(() => []);
+                
+                const myEvents = bookings
+                    .map(booking => {
+                        const event = allEvents.find(e => e.eventId === booking.eventId);
+                        if (event) {
+                            event.bookingInfo = booking;
+                        }
+                        return event;
+                    })
+                    .filter(event => event && new Date(event.startDate) > new Date());
+                
+                if (myEvents.length > 0) {
+                    myEventsGrid.innerHTML = '';
+                    myEvents.forEach(event => {
+                        const card = createEventCard(event);
+                        myEventsGrid.appendChild(card);
+                    });
+                } else {
+                    myEventsGrid.innerHTML = createEmptyState();
+                }
+            } catch (error) {
+                console.error('Failed to load my events:', error);
+                myEventsGrid.innerHTML = '<p class="text-center" style="grid-column: 1/-1; padding: 40px; color: #dc3545;"><i class="fas fa-exclamation-circle"></i> Failed to load events.</p>';
+            }
+        }
+
+        function createEventCard(event) {
+            var eventDate = new Date(event.startDate).toLocaleDateString('en-US', { 
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
+            });
+            var eventTime = new Date(event.startDate).toLocaleTimeString('en-US', { 
+                hour: '2-digit', minute: '2-digit' 
+            });
+            var eventLocation = event.venueName || event.location || 'TBA';
+            var paymentStatus = (event.bookingInfo && event.bookingInfo.paymentStatus) || 'Pending';
+            var isCompleted = paymentStatus === 'Completed';
+            var ticketCount = (event.bookingInfo && event.bookingInfo.quantity) || 1;
+            var price = event.isFree ? 'FREE' : 'Rs. ' + (event.price || 0);
+            var desc = (event.description || 'No description available').substring(0, 100);
+            var statusClass = isCompleted ? 'completed' : 'pending';
+            var freeBadge = event.isFree ? '<span class="free-badge"><i class="fas fa-gift"></i> FREE</span>' : '';
+
+            var card = document.createElement('div');
+            card.className = 'user-event-card';
+            
+            card.innerHTML = '<div class="event-card-header">' +
+                '<i class="fas fa-calendar-star"></i>' +
+                '<span class="status-badge ' + statusClass + '"><i class="fas ' + (isCompleted ? 'fa-check-circle' : 'fa-clock') + '"></i> ' + paymentStatus + '</span>' +
+                freeBadge +
+                '</div>' +
+                '<div class="event-card-body">' +
+                '<h3 class="event-title">' + escapeText(event.title || 'Event') + '</h3>' +
+                '<div class="event-info-grid">' +
+                '<div class="event-info-item"><div class="event-info-icon"><i class="fas fa-calendar-day"></i></div><span class="event-info-text">' + eventDate + '</span></div>' +
+                '<div class="event-info-item"><div class="event-info-icon"><i class="fas fa-clock"></i></div><span class="event-info-text">' + eventTime + '</span></div>' +
+                '<div class="event-info-item"><div class="event-info-icon"><i class="fas fa-map-marker-alt"></i></div><span class="event-info-text">' + escapeText(eventLocation) + '</span></div>' +
+                '<div class="event-info-item"><div class="event-info-icon"><i class="fas fa-ticket-alt"></i></div><span class="event-info-text">' + ticketCount + ' Ticket(s)</span></div>' +
+                '</div>' +
+                '<p class="event-description">' + escapeText(desc) + '...</p>' +
+                '<div class="event-card-footer">' +
+                '<span class="event-price">' + price + '</span>' +
+                '<a href="event-detail.html?id=' + event.eventId + '" class="btn-details"><i class="fas fa-eye"></i> View Details</a>' +
+                '</div></div>';
+            return card;
+        }
+
+        function createEmptyState() {
+            return '<div class="my-events-empty">' +
+                '<div class="empty-icon"><i class="fas fa-calendar-times"></i></div>' +
+                '<h3>No Upcoming Events</h3>' +
+                '<p>You have not booked any upcoming events yet. Discover amazing events happening near you!</p>' +
+                '<a href="events.html" class="btn-browse"><i class="fas fa-compass"></i> Explore Events</a>' +
+                '</div>';
+        }
+
+        function escapeText(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function loadBookingHistory() {
+            var tbody = document.getElementById('bookingHistoryBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+            
+            try {
+                var bookings = await apiRequest('/bookings/my', { requireAuth: true }).catch(function() { return []; });
+                var allEvents = await fetchEvents().catch(function() { return []; });
+                
+                if (bookings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 40px;">No bookings found</td></tr>';
+                    return;
+                }
+                
+                var rows = '';
+                bookings.forEach(function(booking) {
+                    var event = allEvents.find(function(e) { return e.eventId === booking.eventId; });
+                    var eventDate = event ? new Date(event.startDate).toLocaleDateString() : 'N/A';
+                    var bookingDateStr = new Date(booking.createdAt).toLocaleDateString();
+                    var paymentBadge = booking.paymentStatus === 'Completed' ? 'success' : (booking.paymentStatus === 'Failed' ? 'danger' : 'warning');
+                    
+                    var actionButton = '';
+                    var bookingJson = JSON.stringify(booking).replace(/'/g, '&apos;');
+                    
+                    if (booking.paymentStatus === 'Completed') {
+                        actionButton = '<button class="btn btn-small btn-success" onclick="viewTicket(\'' + booking.bookingId + '\')"><i class="fas fa-ticket-alt"></i> View Ticket</button>';
+                    } else if (booking.paymentStatus === 'Pending' && !booking.transactionId) {
+                        actionButton = '<button class="btn btn-small btn-primary" onclick=\'openPaymentModal(' + bookingJson + ')\' style="margin-bottom: 5px;"><i class="fas fa-upload"></i> Upload Payment</button>';
+                    } else if (booking.paymentStatus === 'Pending' && booking.transactionId) {
+                        actionButton = '<button class="btn btn-small btn-outline" onclick=\'openPaymentModal(' + bookingJson + ')\'><i class="fas fa-edit"></i> Update Payment</button><br><small style="color: #666;">Awaiting confirmation</small>';
+                    } else {
+                        actionButton = '<span class="badge badge-danger">Payment ' + (booking.paymentStatus || 'Unknown') + '</span>';
+                    }
+                    
+                    var eventTitle = event ? escapeText(event.title) : 'Unknown Event';
+                    var notesHtml = booking.paymentNotes ? '<br><small style="color: #666; font-size: 0.85em;">' + escapeText(booking.paymentNotes) + '</small>' : '';
+                    
+                    rows += '<tr>' +
+                        '<td style="font-weight: 500;">' + eventTitle + '</td>' +
+                        '<td>' + eventDate + '</td>' +
+                        '<td>' + bookingDateStr + '</td>' +
+                        '<td style="text-align: center;">' + (booking.quantity || 1) + '</td>' +
+                        '<td style="font-weight: 600;">Rs. ' + (booking.finalAmount || booking.totalPrice || 0) + '</td>' +
+                        '<td><span class="badge badge-' + paymentBadge + '">' + (booking.paymentStatus || 'Pending') + '</span>' + notesHtml + '</td>' +
+                        '<td>' + actionButton + '</td>' +
+                        '</tr>';
+                });
+                tbody.innerHTML = rows;
+            } catch (error) {
+                console.error('Failed to load booking history:', error);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="color: #dc3545; padding: 40px;"><i class="fas fa-exclamation-circle"></i> Failed to load booking history</td></tr>';
+            }
+        }
+
+        function loadProfileData() {
+            if (!currentUser) return;
+            
+            var fullNameInput = document.getElementById('profileFullName');
+            var emailInput = document.getElementById('profileEmail');
+            var phoneInput = document.getElementById('profilePhone');
+            var birthDateInput = document.getElementById('profileBirthDate');
+            var cityInput = document.getElementById('profileCity');
+            
+            var fullName = ((currentUser.firstName || '') + ' ' + (currentUser.lastName || '')).trim() || '';
+            if (fullNameInput) fullNameInput.value = fullName;
+            if (emailInput) emailInput.value = currentUser.email || '';
+            if (phoneInput) phoneInput.value = currentUser.phone || '';
+            if (birthDateInput && currentUser.birthDate) birthDateInput.value = currentUser.birthDate;
+            if (cityInput && currentUser.city) cityInput.value = currentUser.city;
+        }
+
+        // Utility functions
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            showAlert('Logged out successfully!', 'success');
+            setTimeout(() => {
+                window.location.href = '../index.html';
+            }, 1500);
+        }
+
+        function downloadBookingHistory() {
+            showAlert('Booking history report downloaded!', 'success');
+        }
+
+        function changePassword() {
+            showAlert('Password change feature would open here', 'info');
+        }
+
+        function downloadData() {
+            showAlert('Your data export will be emailed to you within 24 hours', 'info');
+        }
+
+        function deleteAccount() {
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                showAlert('Account deletion request submitted', 'warning');
+            }
+        }
+
+        function copyReferralCode() {
+            navigator.clipboard.writeText('JOHN2025');
+            showAlert('Referral code copied to clipboard!', 'success');
+        }
+
+        function sendReferralEmail() {
+            showAlert('Referral invitation sent!', 'success');
+        }
+
+        function downloadBookingHistory() {
+            showAlert('Booking history report downloaded!', 'success');
+        }
+
+        function changePassword() {
+            showAlert('Password change feature coming soon!', 'info');
+        }
+
+        function downloadData() {
+            showAlert('Your data export will be emailed to you within 24 hours', 'info');
+        }
+
+        function deleteAccount() {
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                showAlert('Account deletion request submitted', 'warning');
+            }
+        }
+
+        function copyReferralCode() {
+            var firstName = currentUser && currentUser.firstName ? currentUser.firstName.toUpperCase() : 'USER';
+            var code = firstName + '2025';
+            navigator.clipboard.writeText(code);
+            showAlert('Referral code copied to clipboard!', 'success');
+        }
+
+        function sendReferralEmail() {
+            showAlert('Referral invitation sent!', 'success');
+        }
+    </script>
+
+    <!-- Ticket View Modal -->
+    <div id="ticketModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-ticket-alt"></i> Event Ticket</h2>
+                <button class="modal-close" onclick="closeTicketModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="ticketContent">
+                <!-- Ticket content will be dynamically generated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Upload Modal -->
+    <div id="paymentModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Upload Payment Proof</h2>
+                <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info" style="margin-bottom: 20px;">
+                    <strong>Payment Instructions:</strong><br>
+                    Please transfer the booking amount to our EasyPaisa account:<br>
+                    <strong style="font-size: 1.2em; display: block; margin: 10px 0;">Account: 0343-5158758</strong>
+                    <strong style="font-size: 1.2em; display: block; margin: 10px 0;">Account Title: Sami Khan</strong>
+                    After payment, enter your transaction ID and upload screenshot below.
+                </div>
+
+                <form id="paymentProofForm" onsubmit="submitPaymentProof(event)">
+                    <input type="hidden" id="paymentBookingId" value="">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Booking Reference</label>
+                        <input type="text" class="form-control" id="paymentBookingRef" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Amount to Pay</label>
+                        <input type="text" class="form-control" id="paymentAmount" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Transaction ID / Reference Number *</label>
+                        <input type="text" class="form-control" id="transactionId" placeholder="Enter your transaction ID" required>
+                        <small style="color: #666;">Enter the transaction ID from your payment receipt</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Payment Receipt Screenshot *</label>
+                        <input type="file" class="form-control" id="paymentReceipt" accept="image/*" required onchange="previewReceipt(event)">
+                        <small style="color: #666;">Upload a clear screenshot of your payment receipt</small>
+                    </div>
+
+                    <div id="receiptPreview" style="margin-top: 15px; display: none;">
+                        <label class="form-label">Preview:</label>
+                        <img id="receiptPreviewImg" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 8px;">
+                    </div>
+
+                    <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn btn-outline" onclick="closePaymentModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit Payment Proof</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentBookingForPayment = null;
+
+        function openPaymentModal(booking) {
+            currentBookingForPayment = booking;
+            document.getElementById('paymentBookingId').value = booking.bookingId;
+            document.getElementById('paymentBookingRef').value = booking.bookingReference;
+            document.getElementById('paymentAmount').value = 'Rs. ' + (booking.finalAmount || booking.totalPrice);
+            document.getElementById('transactionId').value = booking.transactionId || '';
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+            document.getElementById('paymentProofForm').reset();
+            document.getElementById('receiptPreview').style.display = 'none';
+        }
+
+        function previewReceipt(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('receiptPreviewImg').src = e.target.result;
+                    document.getElementById('receiptPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function submitPaymentProof(event) {
+            event.preventDefault();
+
+            const bookingId = document.getElementById('paymentBookingId').value;
+            const transactionId = document.getElementById('transactionId').value;
+            const receiptFile = document.getElementById('paymentReceipt').files[0];
+
+            if (!receiptFile) {
+                showAlert('Please upload payment receipt', 'warning');
+                return;
+            }
+
+            try {
+                // Convert image to base64
+                const base64Receipt = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(receiptFile);
+                });
+
+                // Update booking with payment proof
+                await fetch(API_BASE_URL + '/bookings/' + bookingId, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+                    },
+                    body: JSON.stringify({
+                        transactionId: transactionId,
+                        paymentReceiptUrl: base64Receipt,
+                        paymentStatus: 'Pending'
+                    })
+                });
+
+                showAlert('Payment proof submitted successfully! Awaiting organizer confirmation.', 'success');
+                closePaymentModal();
+                
+                // Reload booking history
+                loadBookingHistory();
+            } catch (error) {
+                console.error('Failed to submit payment proof:', error);
+                showAlert('Failed to submit payment proof. Please try again.', 'error');
+            }
+        }
+
+        async function viewTicket(bookingId) {
+            try {
+                const bookings = await apiRequest('/bookings/my', { requireAuth: true });
+                const booking = bookings.find(b => b.bookingId === bookingId);
+                
+                if (!booking) {
+                    showAlert('Booking not found', 'error');
+                    return;
+                }
+
+                const event = await apiRequest('/events/' + booking.eventId);
+                
+                if (!event) {
+                    showAlert('Event details not found', 'error');
+                    return;
+                }
+
+                // Format dates
+                const eventDate = new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                const eventTime = new Date(event.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const bookingDateStr = new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const confirmedDateStr = booking.updatedAt ? new Date(booking.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+
+                // Build ticket HTML using DOM
+                const ticketContent = document.getElementById('ticketContent');
+                ticketContent.innerHTML = '';
+                
+                const ticketDiv = document.createElement('div');
+                ticketDiv.id = 'printableTicket';
+                ticketDiv.style.cssText = 'background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; color: white;';
+                
+                const safeTitle = escapeText(event.title);
+                const safeVenue = escapeText(event.venueName || event.location || 'TBA');
+                const safeDesc = escapeText((event.description || '').substring(0, 150));
+                const safeTxnId = booking.transactionId ? escapeText(booking.transactionId) : '';
+                
+                ticketDiv.innerHTML = '<div style="text-align: center; margin-bottom: 25px;"><h1 style="font-size: 2em; margin: 0; color: white;"><i class="fas fa-ticket-alt"></i> EventHub Ticket</h1><p style="margin-top: 8px; color: #f0f0f0;">Your Event Access Pass</p></div>' +
+                    '<div style="background: white; padding: 25px; border-radius: 12px; color: #333;">' +
+                    '<div style="border-bottom: 2px dashed #667eea; padding-bottom: 15px; margin-bottom: 15px;"><h2 style="color: #667eea; margin: 0 0 10px 0; font-size: 1.5em;">' + safeTitle + '</h2><p style="color: #666; margin: 0;">' + safeDesc + '...</p></div>' +
+                    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">' +
+                    '<div><div style="margin-bottom: 12px;"><small style="color: #999;">DATE</small><br><strong>' + eventDate + '</strong></div>' +
+                    '<div style="margin-bottom: 12px;"><small style="color: #999;">TIME</small><br><strong>' + eventTime + '</strong></div>' +
+                    '<div><small style="color: #999;">VENUE</small><br><strong>' + safeVenue + '</strong></div></div>' +
+                    '<div><div style="margin-bottom: 12px;"><small style="color: #999;">TICKETS</small><br><strong>' + booking.quantity + ' Ticket(s)</strong></div>' +
+                    '<div style="margin-bottom: 12px;"><small style="color: #999;">AMOUNT</small><br><strong>Rs. ' + (booking.finalAmount || booking.totalPrice || 0) + '</strong></div>' +
+                    '<div><small style="color: #999;">STATUS</small><br><strong style="color: #28a745;">' + booking.paymentStatus + '</strong></div></div></div>' +
+                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">' +
+                    '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Booking Reference:</span><strong style="font-family: monospace;">' + booking.bookingId.substring(0, 13).toUpperCase() + '</strong></div>' +
+                    '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Booked On:</span><strong>' + bookingDateStr + '</strong></div>' +
+                    '<div style="display: flex; justify-content: space-between;"><span>Confirmed On:</span><strong>' + confirmedDateStr + '</strong></div>' +
+                    (safeTxnId ? '<div style="display: flex; justify-content: space-between; margin-top: 8px;"><span>Transaction ID:</span><strong style="font-family: monospace;">' + safeTxnId + '</strong></div>' : '') +
+                    '</div>' +
+                    '<div style="text-align: center; padding: 12px; background: #e3f2fd; border-radius: 8px;"><i class="fas fa-info-circle" style="color: #2196f3;"></i> <strong>Important:</strong> Please bring valid ID and this ticket to the venue.</div></div>' +
+                    '<div style="text-align: center; margin-top: 20px; color: #f0f0f0; font-size: 0.9em;">Generated by EventHub</div>';
+                
+                ticketContent.appendChild(ticketDiv);
+                
+                // Add buttons
+                const btnDiv = document.createElement('div');
+                btnDiv.style.cssText = 'display: flex; gap: 15px; justify-content: center; margin-top: 20px;';
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'btn btn-primary';
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download PDF';
+                downloadBtn.onclick = function() { downloadTicketPDF(booking.bookingId, event.title); };
+                
+                const printBtn = document.createElement('button');
+                printBtn.className = 'btn btn-outline';
+                printBtn.innerHTML = '<i class="fas fa-print"></i> Print';
+                printBtn.onclick = printTicket;
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'btn btn-outline';
+                closeBtn.innerHTML = '<i class="fas fa-times"></i> Close';
+                closeBtn.onclick = closeTicketModal;
+                
+                btnDiv.appendChild(downloadBtn);
+                btnDiv.appendChild(printBtn);
+                btnDiv.appendChild(closeBtn);
+                ticketContent.appendChild(btnDiv);
+                
+                document.getElementById('ticketModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Failed to load ticket:', error);
+                showAlert('Failed to load ticket details', 'error');
+            }
+        }
+
+        function closeTicketModal() {
+            document.getElementById('ticketModal').style.display = 'none';
+        }
+
+        function printTicket() {
+            var printContent = document.getElementById('printableTicket').innerHTML;
+            var printWindow = window.open('', '', 'height=800,width=800');
+            printWindow.document.write('<html><head><title>Event Ticket<\/title>');
+            printWindow.document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">');
+            printWindow.document.write('<style>body { font-family: Arial, sans-serif; margin: 20px; } @media print { body { margin: 0; } }<\/style>');
+            printWindow.document.write('<\/head><body>');
+            printWindow.document.write(printContent);
+            printWindow.document.write('<\/body><\/html>');
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(function() {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        }
+
+        async function downloadTicketPDF(bookingId, eventTitle) {
+            try {
+                // Check if html2pdf library is loaded
+                if (typeof html2pdf === 'undefined') {
+                    showAlert('Loading PDF library...', 'info');
+                    // Load html2pdf library dynamically
+                    var script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                    script.onload = function() {
+                        generatePDF(bookingId, eventTitle);
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    generatePDF(bookingId, eventTitle);
+                }
+            } catch (error) {
+                console.error('Failed to download PDF:', error);
+                showAlert('Failed to generate PDF. Please try printing instead.', 'error');
+            }
+        }
+
+        function generatePDF(bookingId, eventTitle) {
+            var element = document.getElementById('printableTicket');
+            var safeTitle = eventTitle.replace(/[^a-zA-Z0-9]/g, '_');
+            var filename = safeTitle + '_Ticket_' + bookingId.substring(0, 8) + '.pdf';
+            var opt = {
+                margin: 0.5,
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+            showAlert('PDF download started!', 'success');
+        }
+
+        // Load booking history when section is shown
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check hash and load appropriate section
+            var hash = window.location.hash.replace('#', '');
+            if (hash === 'booking-history') {
+                showSection('booking-history');
+                loadBookingHistory();
+            } else if (hash) {
+                showSection(hash);
+            }
+            
+            // Load booking history if on that section
+            setTimeout(function() {
+                var bookingSection = document.getElementById('booking-history-section');
+                if (bookingSection && bookingSection.style.display !== 'none') {
+                    loadBookingHistory();
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
