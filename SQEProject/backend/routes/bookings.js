@@ -410,7 +410,7 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
         
         // First, check if this user is an organizer
         const organizerCheck = await database.query(`
-            SELECT OrganizerId, OrgName FROM [Users].[Organizers] WHERE UserId = @userId
+            SELECT OrganizerId, OrganizationName FROM [Users].[Organizers] WHERE UserId = @userId
         `, { userId });
         
         console.log('Organizer check result:', organizerCheck.recordset);
@@ -478,6 +478,8 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
         }
 
         query += ` ORDER BY b.CreatedAt DESC`;
+        
+        console.log('Executing query with params:', params);
 
         const result = await database.query(query, params);
 
@@ -515,6 +517,36 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
 router.get('/organizer/analytics', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
+        
+        console.log('=== ANALYTICS REQUEST ===');
+        console.log('UserId:', userId);
+
+        // First get the organizer ID
+        const organizerCheck = await database.query(`
+            SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+        `, { userId });
+        
+        if (organizerCheck.recordset.length === 0) {
+            console.log('User is not an organizer');
+            return res.json({
+                summary: {
+                    totalBookings: 0,
+                    totalTicketsSold: 0,
+                    totalRevenue: 0,
+                    totalFees: 0,
+                    netRevenue: 0,
+                    eventsWithBookings: 0,
+                    confirmedBookings: 0,
+                    cancelledBookings: 0,
+                    avgBookingValue: 0
+                },
+                monthlyTrend: [],
+                categoryDistribution: []
+            });
+        }
+        
+        const organizerId = organizerCheck.recordset[0].OrganizerId;
+        console.log('OrganizerId:', organizerId);
 
         const result = await database.query(`
             SELECT 
@@ -527,14 +559,13 @@ router.get('/organizer/analytics', authenticateToken, async (req, res) => {
                 COUNT(DISTINCT CASE WHEN b.Status = 'Confirmed' THEN b.BookingId END) as confirmedBookings,
                 COUNT(DISTINCT CASE WHEN b.Status = 'Cancelled' THEN b.BookingId END) as cancelledBookings,
                 ISNULL(AVG(b.FinalAmount), 0) as avgBookingValue
-            FROM [Events].[Events] e
-            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId
-            WHERE e.OrganizerId = (
-                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
-            )
-        `, { userId });
+            FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON e.EventId = b.EventId
+            WHERE e.OrganizerId = @organizerId
+        `, { organizerId });
 
         const stats = result.recordset[0];
+        console.log('Analytics stats:', stats);
 
         // Get monthly revenue trend (last 6 months)
         const trendResult = await database.query(`
@@ -542,15 +573,13 @@ router.get('/organizer/analytics', authenticateToken, async (req, res) => {
                 FORMAT(b.CreatedAt, 'yyyy-MM') as month,
                 ISNULL(SUM(b.FinalAmount), 0) as revenue,
                 COUNT(b.BookingId) as bookings
-            FROM [Events].[Events] e
-            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId
-            WHERE e.OrganizerId = (
-                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
-            )
+            FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON e.EventId = b.EventId
+            WHERE e.OrganizerId = @organizerId
             AND b.CreatedAt >= DATEADD(MONTH, -6, GETDATE())
             GROUP BY FORMAT(b.CreatedAt, 'yyyy-MM')
             ORDER BY month
-        `, { userId });
+        `, { organizerId });
 
         // Get category distribution
         const categoryResult = await database.query(`
@@ -562,12 +591,10 @@ router.get('/organizer/analytics', authenticateToken, async (req, res) => {
             FROM [Events].[Events] e
             LEFT JOIN [Events].[Categories] c ON e.CategoryId = c.CategoryId
             LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId
-            WHERE e.OrganizerId = (
-                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
-            )
+            WHERE e.OrganizerId = @organizerId
             GROUP BY c.Name
             ORDER BY ticketsSold DESC
-        `, { userId });
+        `, { organizerId });
 
         res.json({
             summary: stats,

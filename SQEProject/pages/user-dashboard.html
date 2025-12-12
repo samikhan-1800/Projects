@@ -48,9 +48,6 @@
                 <li><a href="#booking-history" onclick="showSection('booking-history')">
                     <i class="fas fa-history"></i> Booking History
                 </a></li>
-                <li><a href="#reminders" onclick="showSection('reminders')">
-                    <i class="fas fa-bell"></i> Reminders
-                </a></li>
                 <li><a href="#profile" onclick="showSection('profile')">
                     <i class="fas fa-user"></i> Profile
                 </a></li>
@@ -155,53 +152,6 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <!-- Reminders Section -->
-            <div id="reminders-section" class="dashboard-section">
-                <div class="dashboard-header">
-                    <div>
-                        <h1>Event Reminders</h1>
-                        <p>Stay updated with your upcoming events</p>
-                    </div>
-                    <button class="btn btn-primary" onclick="openModal('addReminderModal')">
-                        <i class="fas fa-plus"></i> Add Reminder
-                    </button>
-                </div>
-
-                <div class="reminders-list" id="remindersList">
-                    <div class="card">
-                        <div class="card-body">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <h4>Tech Conference 2025</h4>
-                                    <p><i class="fas fa-clock"></i> Reminder: 1 day before event</p>
-                                    <p><i class="fas fa-calendar"></i> Event Date: November 15, 2025</p>
-                                </div>
-                                <div>
-                                    <span class="badge badge-info">Active</span>
-                                    <button class="btn btn-small btn-outline" onclick="editReminder(1)">Edit</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-body">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <h4>Startup Pitch Night</h4>
-                                    <p><i class="fas fa-clock"></i> Reminder: 2 hours before event</p>
-                                    <p><i class="fas fa-calendar"></i> Event Date: October 28, 2025</p>
-                                </div>
-                                <div>
-                                    <span class="badge badge-info">Active</span>
-                                    <button class="btn btn-small btn-outline" onclick="editReminder(3)">Edit</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -621,32 +571,66 @@
                 
                 // Get future booked events
                 const myEvents = bookings
-                    .map(booking => allEvents.find(e => e.eventId === booking.eventId))
+                    .map(booking => {
+                        const event = allEvents.find(e => e.eventId === booking.eventId);
+                        if (event) {
+                            event.bookingInfo = booking; // Attach booking info to event
+                        }
+                        return event;
+                    })
                     .filter(event => event && new Date(event.startDate) > new Date());
                 
                 if (myEvents.length > 0) {
                     myEventsGrid.innerHTML = myEvents.map(event => {
-                        const eventDate = new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                        const eventTime = new Date(event.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        const eventDate = new Date(event.startDate).toLocaleDateString('en-US', { 
+                            weekday: 'short',
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const eventTime = new Date(event.startDate).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
                         // Use ImageUrl property and handle base64 or URL
                         const imageUrl = event.imageUrl || event.image || event.ImageUrl || '../images/default-event.jpg';
                         const eventLocation = event.venueName || event.location || 'TBA';
+                        const paymentBadge = event.bookingInfo?.paymentStatus === 'Completed' ? 'success' : 'warning';
+                        
                         return `
-                            <div class="event-card">
-                                <div class="event-image" style="background-image: url('${imageUrl}'); background-size: cover; background-position: center;">
-                                    ${event.isFree ? '<span class="event-badge">Free</span>' : ''}
+                            <div class="event-card" style="box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; transition: transform 0.2s;">
+                                <div class="event-image" style="
+                                    background-image: url('${imageUrl}'); 
+                                    background-size: cover; 
+                                    background-position: center;
+                                    height: 200px;
+                                    position: relative;
+                                ">
+                                    ${event.isFree ? '<span class="event-badge" style="position: absolute; top: 15px; right: 15px; background: #28a745; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">Free</span>' : ''}
+                                    <span class="badge badge-${paymentBadge}" style="position: absolute; top: 15px; left: 15px; font-size: 0.85em;">${event.bookingInfo?.paymentStatus || 'Pending'}</span>
                                 </div>
-                                <div class="event-content">
-                                    <h3>${event.title || 'Event'}</h3>
-                                    <div class="event-meta">
-                                        <span><i class="fas fa-calendar"></i> ${eventDate}</span>
-                                        <span><i class="fas fa-clock"></i> ${eventTime}</span>
-                                        <span><i class="fas fa-map-marker-alt"></i> ${eventLocation}</span>
+                                <div class="event-content" style="padding: 20px;">
+                                    <h3 style="font-size: 1.3em; font-weight: 600; margin-bottom: 15px; color: #2c3e50;">${event.title || 'Event'}</h3>
+                                    <div class="event-meta" style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                                        <div style="margin-bottom: 8px;">
+                                            <i class="fas fa-calendar-alt" style="width: 20px; color: #667eea;"></i> ${eventDate}
+                                        </div>
+                                        <div style="margin-bottom: 8px;">
+                                            <i class="fas fa-clock" style="width: 20px; color: #667eea;"></i> ${eventTime}
+                                        </div>
+                                        <div style="margin-bottom: 8px;">
+                                            <i class="fas fa-map-marker-alt" style="width: 20px; color: #667eea;"></i> ${eventLocation}
+                                        </div>
+                                        <div>
+                                            <i class="fas fa-ticket-alt" style="width: 20px; color: #667eea;"></i> ${event.bookingInfo?.quantity || 1} Ticket(s)
+                                        </div>
                                     </div>
-                                    <p class="event-description">${(event.description || 'No description available').substring(0, 100)}...</p>
-                                    <div class="event-footer">
-                                        <span class="event-price">${event.isFree ? 'Free' : '$' + (event.price || 0)}</span>
-                                        <a href="event-detail.html?id=${event.eventId}" class="btn btn-primary btn-small">View Details</a>
+                                    <p class="event-description" style="color: #555; font-size: 0.9em; line-height: 1.6; margin-bottom: 15px;">${(event.description || 'No description available').substring(0, 120)}...</p>
+                                    <div class="event-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid #eee;">
+                                        <span class="event-price" style="font-size: 1.3em; font-weight: 700; color: #667eea;">${event.isFree ? 'Free' : '$' + (event.price || 0)}</span>
+                                        <a href="event-detail.html?id=${event.eventId}" class="btn btn-primary btn-small" style="padding: 8px 20px; border-radius: 8px;">
+                                            <i class="fas fa-info-circle"></i> View Details
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -654,17 +638,19 @@
                     }).join('');
                 } else {
                     myEventsGrid.innerHTML = `
-                        <div class="text-center" style="grid-column: 1 / -1; padding: 40px;">
-                            <i class="fas fa-calendar-times" style="font-size: 4rem; color: #ccc; margin-bottom: 20px;"></i>
-                            <h3>No Upcoming Events</h3>
-                            <p>You haven't booked any upcoming events yet. Start exploring!</p>
-                            <a href="events.html" class="btn btn-primary">Browse Events</a>
+                        <div class="text-center" style="grid-column: 1 / -1; padding: 60px 40px;">
+                            <i class="fas fa-calendar-times" style="font-size: 5rem; color: #ddd; margin-bottom: 25px;"></i>
+                            <h3 style="font-size: 1.5em; color: #666; margin-bottom: 15px;">No Upcoming Events</h3>
+                            <p style="color: #999; margin-bottom: 25px;">You haven't booked any upcoming events yet. Start exploring!</p>
+                            <a href="events.html" class="btn btn-primary" style="padding: 12px 30px; font-size: 1em;">
+                                <i class="fas fa-calendar-plus"></i> Browse Events
+                            </a>
                         </div>
                     `;
                 }
             } catch (error) {
                 console.error('Failed to load my events:', error);
-                myEventsGrid.innerHTML = '<p class="text-center">Failed to load events.</p>';
+                myEventsGrid.innerHTML = '<p class="text-center" style="grid-column: 1/-1; padding: 40px; color: #dc3545;"><i class="fas fa-exclamation-circle"></i> Failed to load events.</p>';
             }
         }
 
@@ -802,6 +788,19 @@
             showAlert('Referral invitation sent!', 'success');
         }
     </script>
+
+    <!-- Ticket View Modal -->
+    <div id="ticketModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-ticket-alt"></i> Event Ticket</h2>
+                <button class="modal-close" onclick="closeTicketModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="ticketContent">
+                <!-- Ticket content will be dynamically generated -->
+            </div>
+        </div>
+    </div>
 
     <!-- Payment Upload Modal -->
     <div id="paymentModal" class="modal" style="display: none;">
@@ -989,8 +988,224 @@
             }
         }
 
-        function viewTicket(bookingId) {
-            showAlert('Ticket download feature coming soon!', 'info');
+        async function viewTicket(bookingId) {
+            try {
+                // Fetch booking details
+                const bookings = await apiRequest('/bookings/my', { requireAuth: true });
+                const booking = bookings.find(b => b.bookingId === bookingId);
+                
+                if (!booking) {
+                    showAlert('Booking not found', 'error');
+                    return;
+                }
+
+                // Fetch event details
+                const event = await apiRequest(`/events/${booking.eventId}`);
+                
+                if (!event) {
+                    showAlert('Event details not found', 'error');
+                    return;
+                }
+
+                // Format dates
+                const eventDate = new Date(event.startDate).toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+                const eventTime = new Date(event.startDate).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                const bookingDate = new Date(booking.createdAt).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+                const confirmedDate = booking.updatedAt ? new Date(booking.updatedAt).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : 'N/A';
+
+                // Generate ticket HTML
+                const ticketHTML = `
+                    <div id="printableTicket" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <h1 style="font-size: 2.5em; margin: 0; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                                <i class="fas fa-ticket-alt"></i> EventHub Ticket
+                            </h1>
+                            <p style="font-size: 1.1em; margin-top: 10px; color: #f0f0f0;">Your Event Access Pass</p>
+                        </div>
+
+                        <div style="background: white; padding: 30px; border-radius: 12px; color: #333;">
+                            <div style="border-bottom: 2px dashed #667eea; padding-bottom: 20px; margin-bottom: 20px;">
+                                <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 2em;">${event.title}</h2>
+                                <p style="color: #666; font-size: 1em; line-height: 1.6; margin: 0;">${event.description ? event.description.substring(0, 150) + '...' : 'Event details will be provided at venue.'}</p>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                                <div>
+                                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                                        <i class="fas fa-calendar-alt" style="color: #667eea; font-size: 1.3em; width: 30px;"></i>
+                                        <div>
+                                            <small style="color: #999; display: block; font-size: 0.75em;">DATE</small>
+                                            <strong style="color: #333; font-size: 1em;">${eventDate}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                                        <i class="fas fa-clock" style="color: #667eea; font-size: 1.3em; width: 30px;"></i>
+                                        <div>
+                                            <small style="color: #999; display: block; font-size: 0.75em;">TIME</small>
+                                            <strong style="color: #333; font-size: 1em;">${eventTime}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center;">
+                                        <i class="fas fa-map-marker-alt" style="color: #667eea; font-size: 1.3em; width: 30px;"></i>
+                                        <div>
+                                            <small style="color: #999; display: block; font-size: 0.75em;">VENUE</small>
+                                            <strong style="color: #333; font-size: 1em;">${event.venueName || event.location || 'To Be Announced'}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                                        <i class="fas fa-ticket-alt" style="color: #667eea; font-size: 1.3em; width: 30px;"></i>
+                                        <div>
+                                            <small style="color: #999; display: block; font-size: 0.75em;">TICKET(S)</small>
+                                            <strong style="color: #333; font-size: 1em;">${booking.quantity} Ticket(s)</strong>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                                        <i class="fas fa-dollar-sign" style="color: #667eea; font-size: 1.3em; width: 30px;"></i>
+                                        <div>
+                                            <small style="color: #999; display: block; font-size: 0.75em;">AMOUNT PAID</small>
+                                            <strong style="color: #333; font-size: 1em;">$${booking.finalAmount || booking.totalPrice || 0}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center;">
+                                        <i class="fas fa-check-circle" style="color: #28a745; font-size: 1.3em; width: 30px;"></i>
+                                        <div>
+                                            <small style="color: #999; display: block; font-size: 0.75em;">STATUS</small>
+                                            <strong style="color: #28a745; font-size: 1em;">${booking.paymentStatus}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span style="color: #666;">Booking Reference:</span>
+                                    <strong style="color: #333; font-family: monospace;">${booking.bookingId.substring(0, 13).toUpperCase()}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span style="color: #666;">Booked On:</span>
+                                    <strong style="color: #333;">${bookingDate}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span style="color: #666;">Confirmed On:</span>
+                                    <strong style="color: #333;">${confirmedDate}</strong>
+                                </div>
+                                ${booking.transactionId ? `
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: #666;">Transaction ID:</span>
+                                    <strong style="color: #333; font-family: monospace;">${booking.transactionId}</strong>
+                                </div>
+                                ` : ''}
+                            </div>
+
+                            <div style="text-align: center; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                                <i class="fas fa-info-circle" style="color: #2196f3; margin-right: 8px;"></i>
+                                <strong style="color: #1976d2;">Important:</strong>
+                                <span style="color: #555;"> Please bring a valid ID and this ticket (printed or digital) to the event venue.</span>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 25px;">
+                            <p style="color: #f0f0f0; font-size: 0.9em; margin: 5px 0;">Generated by EventHub Management System</p>
+                            <p style="color: #f0f0f0; font-size: 0.85em; margin: 0;">For support, contact: support@eventhub.com</p>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 15px; justify-content: center; margin-top: 25px;">
+                        <button class="btn btn-primary" onclick="downloadTicketPDF('${booking.bookingId}', '${event.title}')">
+                            <i class="fas fa-download"></i> Download as PDF
+                        </button>
+                        <button class="btn btn-outline" onclick="printTicket()">
+                            <i class="fas fa-print"></i> Print Ticket
+                        </button>
+                        <button class="btn btn-outline" onclick="closeTicketModal()">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('ticketContent').innerHTML = ticketHTML;
+                document.getElementById('ticketModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Failed to load ticket:', error);
+                showAlert('Failed to load ticket details', 'error');
+            }
+        }
+
+        function closeTicketModal() {
+            document.getElementById('ticketModal').style.display = 'none';
+        }
+
+        function printTicket() {
+            const printContent = document.getElementById('printableTicket').innerHTML;
+            const printWindow = window.open('', '', 'height=800,width=800');
+            printWindow.document.write('<html><head><title>Event Ticket</title>');
+            printWindow.document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">');
+            printWindow.document.write('<style>body { font-family: Arial, sans-serif; margin: 20px; } @media print { body { margin: 0; } }</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(printContent);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        }
+
+        async function downloadTicketPDF(bookingId, eventTitle) {
+            try {
+                // Check if html2pdf library is loaded
+                if (typeof html2pdf === 'undefined') {
+                    showAlert('Loading PDF library...', 'info');
+                    // Load html2pdf library dynamically
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                    script.onload = () => {
+                        generatePDF(bookingId, eventTitle);
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    generatePDF(bookingId, eventTitle);
+                }
+            } catch (error) {
+                console.error('Failed to download PDF:', error);
+                showAlert('Failed to generate PDF. Please try printing instead.', 'error');
+            }
+        }
+
+        function generatePDF(bookingId, eventTitle) {
+            const element = document.getElementById('printableTicket');
+            const opt = {
+                margin: 0.5,
+                filename: `${eventTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Ticket_${bookingId.substring(0, 8)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+            showAlert('PDF download started!', 'success');
         }
 
         // Load booking history when section is shown

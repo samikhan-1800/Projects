@@ -688,7 +688,7 @@ function renderAttendees() {
                 <td>${attendee.transactionId || 'N/A'}</td>
                 <td>
                     ${attendee.paymentReceiptUrl ? 
-                        `<a href="${attendee.paymentReceiptUrl}" target="_blank" class="btn btn-small btn-outline">View Receipt</a>` : 
+                        `<button class="btn btn-small btn-outline" onclick="viewReceipt('${attendee.paymentReceiptUrl}', '${attendee.bookingReference}')">View Receipt</button>` : 
                         '<span style="color: #999;">No receipt</span>'}
                 </td>
                 <td>
@@ -1134,6 +1134,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show initial section
     showSection('dashboard');
 });
+
+// View payment receipt in modal
+function viewReceipt(receiptUrl, bookingRef) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>Payment Receipt - ${bookingRef}</h2>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px;">
+                <img src="${receiptUrl}" alt="Payment Receipt" style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            </div>
+            <div style="padding: 20px; text-align: right;">
+                <button class="btn btn-outline" onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
 
 // Payment confirmation functions
 async function confirmPayment(bookingId) {
