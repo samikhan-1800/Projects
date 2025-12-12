@@ -640,4 +640,22 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// Increment event view count
+router.put('/:id/increment-view', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await database.query(`
+            UPDATE [Events].[Events]
+            SET ViewCount = ISNULL(ViewCount, 0) + 1
+            WHERE EventId = @eventId
+        `, { eventId: id });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Failed to increment view count:', error);
+        res.status(500).json({ error: 'Failed to increment view count' });
+    }
+});
+
 module.exports = router;

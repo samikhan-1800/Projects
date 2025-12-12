@@ -204,19 +204,19 @@ async function loadFeaturedEvents() {
             
             console.log('Published future events:', publishedEvents.length);
             
-            // Try to get featured events first
-            let eventsToShow = publishedEvents.filter(event => event.isFeatured).slice(0, 3);
+            // Show all published future events (up to 9 for grid layout)
+            let eventsToShow = publishedEvents.slice(0, 9);
             
-            // If no featured events, show the first 3 published events
+            // If no published future events, show recent events
             if (eventsToShow.length === 0) {
-                console.log('No featured events found, showing first 3 published events');
-                eventsToShow = publishedEvents.slice(0, 3);
+                console.log('No published future events, showing recent events');
+                eventsToShow = allEvents.filter(e => e.status === 'Published').slice(0, 9);
             }
             
             // If still no events, show any events (for testing)
             if (eventsToShow.length === 0) {
-                console.log('No published events, showing first 3 events');
-                eventsToShow = allEvents.slice(0, 3);
+                console.log('No published events, showing all events');
+                eventsToShow = allEvents.slice(0, 9);
             }
             
             if (eventsToShow.length > 0) {

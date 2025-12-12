@@ -15,7 +15,9 @@ const bookingSchema = Joi.object({
         email: Joi.string().email().required(),
         phone: Joi.string().optional(),
         guests: Joi.array().items(Joi.string()).optional()
-    }).required()
+    }).required(),
+    transactionId: Joi.string().optional().allow('', null),
+    paymentReceiptUrl: Joi.string().optional().allow('', null)
 });
 
 // Create new booking
@@ -29,7 +31,7 @@ router.post('/', authenticateToken, async (req, res) => {
             });
         }
 
-        const { eventId, ticketId, quantity, attendeeInfo } = value;
+        const { eventId, ticketId, quantity, attendeeInfo, transactionId, paymentReceiptUrl } = value;
         const userId = req.user.userId;
 
         // Get event details and check availability
@@ -119,13 +121,15 @@ router.post('/', authenticateToken, async (req, res) => {
             INSERT INTO [Events].[Bookings] (
                 BookingId, EventId, TicketId, UserId, BookingReference,
                 Quantity, UnitPrice, TotalPrice, PlatformFee, FinalAmount,
-                Currency, Status, PaymentStatus, AttendeeInfo, QrCode
+                Currency, Status, PaymentStatus, AttendeeInfo, QrCode,
+                TransactionId, PaymentReceiptUrl
             )
             OUTPUT INSERTED.BookingId, INSERTED.BookingReference, INSERTED.CreatedAt
             VALUES (
                 NEWID(), @eventId, @ticketId, @userId, @bookingReference,
                 @quantity, @unitPrice, @totalPrice, @platformFee, @finalAmount,
-                'USD', 'Confirmed', @paymentStatus, @attendeeInfo, @qrCode
+                'USD', @bookingStatus, @paymentStatus, @attendeeInfo, @qrCode,
+                @transactionId, @paymentReceiptUrl
             )
         `, {
             eventId,
@@ -137,9 +141,12 @@ router.post('/', authenticateToken, async (req, res) => {
             totalPrice,
             platformFee,
             finalAmount,
+            bookingStatus: event.IsFree ? 'Confirmed' : 'Pending',
             paymentStatus: event.IsFree ? 'Completed' : 'Pending',
             attendeeInfo: JSON.stringify(attendeeInfo),
-            qrCode: 'QR_' + bookingReference
+            qrCode: 'QR_' + bookingReference,
+            transactionId: transactionId || null,
+            paymentReceiptUrl: paymentReceiptUrl || null
         });
 
         const booking = bookingResult.recordset[0];
@@ -333,6 +340,10 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
                 b.PaymentStatus as paymentStatus,
                 b.AttendeeInfo as attendeeInfo,
                 b.CreatedAt as createdAt,
+                b.TransactionId as transactionId,
+                b.PaymentReceiptUrl as paymentReceiptUrl,
+                b.PaymentNotes as paymentNotes,
+                b.PaymentConfirmedAt as paymentConfirmedAt,
                 e.EventId as eventId,
                 e.Title as eventTitle,
                 u.FirstName as userFirstName,
@@ -445,6 +456,84 @@ router.get('/organizer/analytics', authenticateToken, async (req, res) => {
         res.status(500).json({
             error: 'Failed to fetch analytics'
         });
+    }
+});
+
+// Confirm payment (organizers only)
+router.put('/:id/confirm-payment', authenticateToken, async (req, res) => {
+    try {
+        const { notes } = req.body;
+        const bookingId = req.params.id;
+        const userId = req.user.userId;
+
+        // Verify organizer owns this event
+        const checkResult = await database.query(`
+            SELECT b.BookingId, e.OrganizerId 
+            FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+            INNER JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
+            WHERE b.BookingId = @bookingId AND o.UserId = @userId
+        `, { bookingId, userId });
+
+        if (checkResult.recordset.length === 0) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        await database.query(`
+            UPDATE [Events].[Bookings] 
+            SET Status = 'Confirmed',
+                PaymentStatus = 'Completed',
+                PaymentConfirmedAt = GETUTCDATE(),
+                PaymentConfirmedBy = @userId,
+                PaymentNotes = @notes,
+                UpdatedAt = GETUTCDATE()
+            WHERE BookingId = @bookingId
+        `, { bookingId, userId, notes: notes || null });
+
+        res.json({ message: 'Payment confirmed successfully' });
+    } catch (error) {
+        console.error('Failed to confirm payment:', error);
+        res.status(500).json({ error: 'Failed to confirm payment' });
+    }
+});
+
+// Reject payment (organizers only)
+router.put('/:id/reject-payment', authenticateToken, async (req, res) => {
+    try {
+        const { notes } = req.body;
+        const bookingId = req.params.id;
+        const userId = req.user.userId;
+
+        if (!notes) {
+            return res.status(400).json({ error: 'Rejection reason is required' });
+        }
+
+        // Verify organizer owns this event
+        const checkResult = await database.query(`
+            SELECT b.BookingId, e.OrganizerId 
+            FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+            INNER JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
+            WHERE b.BookingId = @bookingId AND o.UserId = @userId
+        `, { bookingId, userId });
+
+        if (checkResult.recordset.length === 0) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        await database.query(`
+            UPDATE [Events].[Bookings]
+            SET Status = 'Cancelled',
+                PaymentStatus = 'Failed',
+                PaymentNotes = @notes,
+                UpdatedAt = GETUTCDATE()
+            WHERE BookingId = @bookingId
+        `, { bookingId, notes });
+
+        res.json({ message: 'Payment rejected', notes });
+    } catch (error) {
+        console.error('Failed to reject payment:', error);
+        res.status(500).json({ error: 'Failed to reject payment' });
     }
 });
 
