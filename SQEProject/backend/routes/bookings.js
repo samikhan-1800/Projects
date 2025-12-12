@@ -152,7 +152,7 @@ router.post('/', authenticateToken, async (req, res) => {
             VALUES (
                 NEWID(), @eventId, @ticketId, @userId, @bookingReference,
                 @quantity, @unitPrice, @totalPrice, @platformFee, @finalAmount,
-                'USD', @bookingStatus, @paymentStatus, @attendeeInfo, @qrCode,
+                'PKR', @bookingStatus, @paymentStatus, @attendeeInfo, @qrCode,
                 @transactionId, @paymentReceiptUrl
             )
         `, {
@@ -201,7 +201,7 @@ router.post('/', authenticateToken, async (req, res) => {
             )
             VALUES (
                 @bookingId, @organizerId, @userId, 'Payment', @status,
-                @finalAmount, 'USD', @platformFee, @totalPrice,
+                @finalAmount, 'PKR', @platformFee, @totalPrice,
                 @gateway, @description, GETUTCDATE()
             )
         `, {

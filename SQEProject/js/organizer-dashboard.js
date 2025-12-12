@@ -197,7 +197,7 @@ function updateStatsCards() {
         if (statCards.length >= 4) {
             statCards[0].textContent = dashboardStats.totalEvents;
             statCards[1].textContent = dashboardStats.totalTicketsSold.toLocaleString();
-            statCards[2].textContent = `$${dashboardStats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            statCards[2].textContent = `Rs. ${dashboardStats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             statCards[3].textContent = dashboardStats.avgRating > 0 ? dashboardStats.avgRating.toFixed(1) : 'N/A';
         }
     }
@@ -228,7 +228,7 @@ function renderRecentEvents() {
                 <td>${event.title || 'Untitled Event'}</td>
                 <td>${formattedDate}</td>
                 <td>${ticketsSold}/${capacity}</td>
-                <td>$${revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td>Rs. ${revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td><span class="badge badge-${status.class}">${status.text}</span></td>
                 <td>
                     <button class="btn btn-small btn-outline" onclick="editEvent('${event.eventId}')">Edit</button>
@@ -313,10 +313,10 @@ function renderOrganizerEvents() {
                         </div>
                         <div class="event-detail">
                             <i class="fas fa-dollar-sign"></i>
-                            <span>$${revenue.toLocaleString()} revenue</span>
+                            <span>Rs. ${revenue.toLocaleString()} revenue</span>
                         </div>
                     </div>
-                    <div class="event-price">${event.isFree ? 'FREE' : `$${event.price}`}</div>
+                    <div class="event-price">${event.isFree ? 'FREE' : `Rs. ${event.price}`}</div>
                     <div class="card-footer" style="margin-top: 15px;">
                         <span class="badge badge-${status.class}">${status.text}</span>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -725,7 +725,7 @@ async function loadAnalytics(eventId = null) {
             analyticsStats[1].textContent = response.summary.confirmedBookings || 0;
             analyticsStats[2].textContent = response.summary.totalBookings > 0 ? 
                 ((response.summary.confirmedBookings / response.summary.totalBookings) * 100).toFixed(1) + '%' : '0%';
-            analyticsStats[3].textContent = '$' + (response.summary.avgBookingValue || 0).toFixed(2);
+            analyticsStats[3].textContent = 'Rs. ' + (response.summary.avgBookingValue || 0).toFixed(2);
         }
         
         // Render revenue trend chart
@@ -761,7 +761,7 @@ function renderRevenueChart(trendData) {
         data: {
             labels: months,
             datasets: [{
-                label: 'Revenue ($)',
+                label: 'Revenue (PKR)',
                 data: revenues,
                 borderColor: '#5856d6',
                 backgroundColor: 'rgba(88, 86, 214, 0.1)',
@@ -782,7 +782,7 @@ function renderRevenueChart(trendData) {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toLocaleString();
+                            return 'Rs. ' + value.toLocaleString();
                         }
                     }
                 }
@@ -858,7 +858,7 @@ function updateTopEventsTable() {
                 <td>${views.toLocaleString()}</td>
                 <td>${event.bookingCount || 0}</td>
                 <td>${conversionRate}%</td>
-                <td>$${(event.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td>Rs. ${(event.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
         `;
     }).join('');
@@ -881,9 +881,9 @@ async function loadPayments() {
         // Update payment stats cards
         const paymentStats = document.querySelectorAll('#payments-section .stat-card-value');
         if (paymentStats.length >= 4) {
-            paymentStats[0].textContent = '$' + totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            paymentStats[1].textContent = '$' + netRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            paymentStats[2].textContent = '$' + totalFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            paymentStats[0].textContent = 'Rs. ' + totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            paymentStats[1].textContent = 'Rs. ' + netRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            paymentStats[2].textContent = 'Rs. ' + totalFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             paymentStats[3].textContent = transactions.length;
         }
         
@@ -919,9 +919,9 @@ function renderPaymentsTable(transactions) {
                 <td>${transaction.eventTitle || 'N/A'}</td>
                 <td>${transaction.userName || 'Guest'}</td>
                 <td>${transaction.quantity || 1}</td>
-                <td>$${amount.toFixed(2)}</td>
-                <td>$${fee.toFixed(2)}</td>
-                <td>$${net.toFixed(2)}</td>
+                <td>Rs. ${amount.toFixed(2)}</td>
+                <td>Rs. ${fee.toFixed(2)}</td>
+                <td>Rs. ${net.toFixed(2)}</td>
                 <td><span class="badge badge-success">Completed</span></td>
             </tr>
         `;

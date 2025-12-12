@@ -66,10 +66,10 @@
                 <div class="form-group" style="margin-bottom: 0;">
                     <select id="priceFilter" class="form-control">
                         <option value="">Any Price</option>
-                        <option value="0-50">Under $50</option>
-                        <option value="50-100">$50 - $100</option>
-                        <option value="100-200">$100 - $200</option>
-                        <option value="200-">Over $200</option>
+                        <option value="0-50">Under Rs. 5,000</option>
+                        <option value="50-100">Rs. 5,000 - Rs. 10,000</option>
+                        <option value="100-200">Rs. 10,000 - Rs. 20,000</option>
+                        <option value="200-">Over Rs. 20,000</option>
                     </select>
                 </div>
                 
@@ -439,7 +439,7 @@
                         </div>
                         <div style="text-align: center; flex-shrink: 0;">
                             <div class="event-price" style="margin-bottom: 20px;">
-                                ${event.isFree ? 'Free' : `$${event.price}`}
+                                ${event.isFree ? 'Free' : `Rs. ${event.price}`}
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 10px;">
                                 <a href="event-detail.html?id=${event.eventId}" class="btn btn-outline">View Details</a>

@@ -123,7 +123,7 @@ async function loadDashboardOverview() {
         document.getElementById('totalUsers').textContent = stats.totalUsers.toLocaleString();
         document.getElementById('totalEvents').textContent = stats.totalEvents.toLocaleString();
         document.getElementById('totalBookings').textContent = stats.totalBookings.toLocaleString();
-        document.getElementById('totalRevenue').textContent = `$${stats.totalRevenue.toLocaleString()}`;
+        document.getElementById('totalRevenue').textContent = `Rs. ${stats.totalRevenue.toLocaleString()}`;
         
         // Load recent activities
         await loadRecentActivities();

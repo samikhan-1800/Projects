@@ -1,6 +1,7 @@
 /**
  * EventHub Main JavaScript
  * Uses shared utilities from utils.js
+ * Currency: Pakistani Rupee (Rs./PKR) - Updated Dec 13, 2025
  */
 
 // Ensure utils.js is loaded
@@ -304,7 +305,7 @@ function createEventCard(event, isFeatured = false) {
                     </div>
                 </div>
                 <div class="event-price">
-                    ${event.isFree || event.price === 0 ? 'Free' : `$${event.price}`}
+                    ${event.isFree || event.price === 0 ? 'Free' : `Rs. ${event.price}`}
                 </div>
                 <div class="card-footer">
                     ${isFeatured ? 
@@ -635,7 +636,7 @@ async function loadEventDetail() {
                             </div>
                         </div>
                         <div class="event-price-large">
-                            ${event.isFree ? 'Free' : `$${event.price}`}
+                            ${event.isFree ? 'Free' : `Rs. ${event.price}`}
                         </div>
                     </div>
                 </div>
@@ -693,7 +694,7 @@ async function loadEventDetail() {
                                     </div>
                                     
                                     <div class="total-price">
-                                        <strong>Total: $<span id="totalPrice">${event.price || 0}</span></strong>
+                                        <strong>Total: Rs. <span id="totalPrice">${event.price || 0}</span></strong>
                                     </div>
                                     
                                     <button type="submit" class="btn btn-primary w-100" ${(event.capacity - (event.bookingCount || 0)) <= 0 ? 'disabled' : ''}>
@@ -890,7 +891,7 @@ async function loadUserDashboard() {
                                             <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
                                             <td>${booking.quantity}</td>
                                             <td><span class="badge badge-${booking.status.toLowerCase() === 'confirmed' ? 'success' : 'warning'}">${booking.status}</span></td>
-                                            <td>$${booking.finalAmount}</td>
+                                            <td>Rs. ${booking.finalAmount}</td>
                                         </tr>
                                     `;
                                 }).join('') : '<tr><td colspan="5" class="text-center">No bookings found</td></tr>'}

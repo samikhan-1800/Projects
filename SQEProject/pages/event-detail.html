@@ -422,7 +422,7 @@
                     <input type="hidden" name="phone" value="${userPhone}">
                     
                     <div class="total-price">
-                        <strong>Total: ${currentEvent.isFree ? 'Free' : '$<span id="totalPrice">' + (currentEvent.price || 0) + '</span>'}</strong>
+                        <strong>Total: ${currentEvent.isFree ? 'Free' : 'Rs. <span id="totalPrice">' + (currentEvent.price || 0) + '</span>'}</strong>
                     </div>
                     
                     <button type="submit" class="btn ${availableSeats > 0 ? 'btn-primary' : 'btn-secondary'} w-100" ${availableSeats <= 0 ? 'disabled' : ''}>
@@ -505,7 +505,7 @@
                                     <span>${currentEvent.categoryName || 'General'}</span>
                                 </div>
                             </div>
-                            <div class="event-price-large">${currentEvent.isFree ? 'Free' : '$' + currentEvent.price}</div>
+                            <div class="event-price-large">${currentEvent.isFree ? 'Free' : 'Rs. ' + currentEvent.price}</div>
                             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                 <button class="btn btn-outline" onclick="openModal('shareModal'); updateShareModal()">
                                     <i class="fas fa-share-alt"></i> Share Event
