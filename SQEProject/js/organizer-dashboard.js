@@ -660,7 +660,7 @@ function renderAttendees() {
     }
     
     if (filteredAttendees.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No attendees found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">No attendees found</td></tr>';
         return;
     }
     
@@ -669,6 +669,8 @@ function renderAttendees() {
         const formattedDate = bookingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const statusBadge = attendee.status === 'Confirmed' ? 'success' : 
                            attendee.status === 'Cancelled' ? 'danger' : 'warning';
+        const paymentBadge = attendee.paymentStatus === 'Completed' ? 'success' : 
+                            attendee.paymentStatus === 'Failed' ? 'danger' : 'warning';
         const attendeeEmail = attendee.userEmail || attendee.attendeeInfo?.email || 'N/A';
         
         return `
@@ -680,11 +682,18 @@ function renderAttendees() {
                 <td>${attendee.quantity || 1}</td>
                 <td>${formattedDate}</td>
                 <td><span class="badge badge-${statusBadge}">${attendee.status || 'Pending'}</span></td>
+                <td>${attendee.transactionId || 'N/A'}</td>
                 <td>
-                    <button class="btn btn-small btn-outline" onclick="contactAttendee('${attendee.bookingId}')">Contact</button>
-                    ${attendee.status === 'Confirmed' ? 
-                        `<button class="btn btn-small btn-outline" onclick="refundAttendee('${attendee.bookingId}')">Refund</button>` :
-                        `<button class="btn btn-small btn-outline" onclick="cancelAttendee('${attendee.bookingId}')">Cancel</button>`
+                    ${attendee.paymentReceiptUrl ? 
+                        `<a href="${attendee.paymentReceiptUrl}" target="_blank" class="btn btn-small btn-outline">View Receipt</a>` : 
+                        '<span style="color: #999;">No receipt</span>'}
+                </td>
+                <td>
+                    ${attendee.paymentStatus === 'Pending' ?
+                        `<button class="btn btn-small" style="background: #28a745; color: white;" onclick="confirmPayment('${attendee.bookingId}')">✓ Confirm</button>
+                         <button class="btn btn-small" style="background: #dc3545; color: white; margin-left: 5px;" onclick="rejectPayment('${attendee.bookingId}')">✗ Reject</button>` :
+                        `<span class="badge badge-${paymentBadge}">${attendee.paymentStatus}</span>
+                         ${attendee.paymentNotes ? `<br><small style="color: #666;">${attendee.paymentNotes}</small>` : ''}`
                     }
                 </td>
             </tr>
@@ -1122,3 +1131,82 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show initial section
     showSection('dashboard');
 });
+
+// Payment confirmation functions
+async function confirmPayment(bookingId) {
+    const notes = prompt('Add confirmation notes (optional):');
+    if (notes === null) return; // User cancelled
+    
+    try {
+        await apiRequest(`/bookings/${bookingId}/confirm-payment`, {
+            method: 'PUT',
+            body: JSON.stringify({ notes: notes || '' })
+        });
+        showAlert('Payment confirmed successfully!', 'success');
+        await loadAttendees();
+    } catch (error) {
+        console.error('Failed to confirm payment:', error);
+        showAlert('Failed to confirm payment', 'error');
+    }
+}
+
+async function rejectPayment(bookingId) {
+    const notes = prompt('Reason for rejection (required):');
+    if (!notes || notes.trim() === '') {
+        showAlert('Rejection reason is required', 'warning');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to reject this payment?')) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/bookings/${bookingId}/reject-payment`, {
+            method: 'PUT',
+            body: JSON.stringify({ notes })
+        });
+        showAlert('Payment rejected', 'warning');
+        await loadAttendees();
+    } catch (error) {
+        console.error('Failed to reject payment:', error);
+        showAlert('Failed to reject payment', 'error');
+    }
+}
+
+// CSV Export function
+function exportAttendeesCSV() {
+    if (!allAttendees || allAttendees.length === 0) {
+        showAlert('No attendees data to export', 'warning');
+        return;
+    }
+    
+    const headers = ['Name', 'Email', 'Event', 'Quantity', 'Date', 'Status', 'Payment Status', 'Transaction ID'];
+    const rows = allAttendees.map(a => [
+        a.userName || 'Guest',
+        a.userEmail || 'N/A',
+        a.eventTitle || 'Unknown Event',
+        a.quantity || 1,
+        new Date(a.createdAt).toLocaleDateString(),
+        a.status || 'Pending',
+        a.paymentStatus || 'Pending',
+        a.transactionId || 'N/A'
+    ]);
+    
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendees_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showAlert('Attendees exported successfully!', 'success');
+}
+
+// Make functions globally accessible
+window.confirmPayment = confirmPayment;
+window.rejectPayment = rejectPayment;
+window.exportAttendeesCSV = exportAttendeesCSV;

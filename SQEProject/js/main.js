@@ -422,7 +422,7 @@ function quickBookEvent(eventId) {
 }
 
 // Event Booking
-async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}) {
+async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}, transactionId = '', paymentReceiptUrl = '') {
     if (!currentUser) {
         showAlert('Please log in to book events.', 'warning');
         const loginUrl = window.location.pathname.includes('pages/') ? 'login.html' : 'pages/login.html';
@@ -434,7 +434,9 @@ async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}) {
         const bookingData = {
             eventId,
             quantity: ticketQuantity,
-            attendeeInfo
+            attendeeInfo,
+            transactionId: transactionId || '',
+            paymentReceiptUrl: paymentReceiptUrl || ''
         };
 
         const result = await apiRequest('/bookings', {
@@ -442,15 +444,15 @@ async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}) {
             body: JSON.stringify(bookingData)
         });
 
-        showAlert(`Successfully booked event! Booking reference: ${result.bookingReference}`, 'success');
+        showAlert(`Booking created successfully! Reference: ${result.booking?.bookingReference || result.bookingReference}. Please upload payment proof in your dashboard to confirm.`, 'success');
         
-        // Refresh events data
-        await fetchEvents();
-        
-        // Update UI if on events page
-        if (window.location.pathname.includes('events.html')) {
-            loadEvents();
-        }
+        // Redirect to user dashboard after short delay
+        setTimeout(() => {
+            const dashboardUrl = window.location.pathname.includes('pages/') ? 
+                'user-dashboard.html#booking-history' : 
+                'pages/user-dashboard.html#booking-history';
+            window.location.href = dashboardUrl;
+        }, 2000);
         
         return result;
     } catch (error) {
@@ -714,11 +716,32 @@ async function loadEventDetail() {
                         return;
                     }
                     
-                    await bookEvent(eventId, tickets, {
+                    const attendeeInfo = {
                         name: formData.get('fullName'),
                         email: formData.get('email'),
                         phone: formData.get('phone')
-                    });
+                    };
+                    
+                    // For paid events, prompt for payment proof
+                    let transactionId = '';
+                    let paymentReceiptUrl = '';
+                    
+                    if (!event.isFree && event.price > 0) {
+                        transactionId = prompt('Enter your payment transaction ID:');
+                        if (!transactionId) {
+                            showAlert('Transaction ID is required for paid events', 'warning');
+                            return;
+                        }
+                        
+                        const receipt = prompt('Paste receipt image URL (or upload base64):');
+                        if (receipt) {
+                            paymentReceiptUrl = receipt;
+                        }
+                        
+                        showAlert('Please upload your payment receipt. After booking, the organizer will verify your payment.', 'info');
+                    }
+                    
+                    await bookEvent(eventId, tickets, attendeeInfo, transactionId, paymentReceiptUrl);
                 }
             });
         }
@@ -1214,6 +1237,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load event detail
     if (window.location.pathname.includes('event-detail.html')) {
         loadEventDetail();
+        
+        // Track event view
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        if (eventId) {
+            try {
+                fetch(`${API_BASE_URL}/events/${eventId}/increment-view`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                }).catch(err => console.log('View tracking failed (non-critical):', err));
+            } catch (error) {
+                console.log('View tracking failed (non-critical):', error);
+            }
+        }
     }
     
     // Load user dashboard

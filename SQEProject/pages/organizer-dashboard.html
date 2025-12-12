@@ -544,7 +544,9 @@
                         <p>View and manage your event attendees</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-outline">Export List</button>
+                        <button class="btn btn-outline" onclick="exportAttendeesCSV()">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
                         <button class="btn btn-primary">Send Message</button>
                     </div>
                 </div>
@@ -565,9 +567,9 @@
                         <div class="form-group" style="margin-bottom: 0;">
                             <select class="form-control" id="attendeeStatus">
                                 <option value="">All Status</option>
-                                <option value="confirmed">Confirmed</option>
-                                <option value="pending">Pending</option>
-                                <option value="cancelled">Cancelled</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Cancelled">Cancelled</option>
                             </select>
                         </div>
                     </div>
@@ -587,12 +589,14 @@
                                 <th>Tickets</th>
                                 <th>Registration Date</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th>Transaction ID</th>
+                                <th>Receipt</th>
+                                <th>Payment Action</th>
                             </tr>
                         </thead>
                         <tbody id="attendeesTableBody">
                             <tr>
-                                <td colspan="8" style="text-align: center; padding: 40px;">Loading attendees...</td>
+                                <td colspan="10" style="text-align: center; padding: 40px;">Loading attendees...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -689,14 +693,14 @@
                     <form id="organizerProfileForm">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div class="form-group">
-                                <label class="form-label">Organization Name</label>
-                                <input type="text" class="form-control" name="orgName" value="TechEvents Inc." required>
+                                <label class="form-label">First Name</label>
+                                <input type="text" class="form-control" name="firstName" value="Jane" required>
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
-                                <label class="form-label">Contact Person</label>
-                                <input type="text" class="form-control" name="contactPerson" value="Jane Smith" required>
+                                <label class="form-label">Last Name</label>
+                                <input type="text" class="form-control" name="lastName" value="Smith" required>
                                 <div class="form-error"></div>
                             </div>
                             
@@ -708,7 +712,7 @@
                             
                             <div class="form-group">
                                 <label class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" name="phone" value="+1 (555) 987-6543" required>
+                                <input type="tel" class="form-control" name="phone" value="+1 (555) 987-6543">
                                 <div class="form-error"></div>
                             </div>
                             
@@ -719,25 +723,15 @@
                             </div>
                             
                             <div class="form-group">
-                                <label class="form-label">Industry</label>
-                                <select class="form-control" name="industry">
-                                    <option value="technology" selected>Technology</option>
-                                    <option value="education">Education</option>
-                                    <option value="entertainment">Entertainment</option>
-                                    <option value="nonprofit">Non-Profit</option>
-                                    <option value="corporate">Corporate</option>
-                                </select>
+                                <label class="form-label">Avatar URL</label>
+                                <input type="url" class="form-control" name="avatarUrl" placeholder="https://example.com/avatar.jpg">
+                                <div class="form-error"></div>
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Organization Description</label>
-                            <textarea class="form-control" name="description" rows="4">Professional event organizer with 10+ years of experience creating memorable experiences. Specializing in technology events and conferences.</textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Address</label>
-                            <input type="text" class="form-control" name="address" value="123 Business Ave, Tech City, TC 12345">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-control" name="bio" rows="4">Professional event organizer with 10+ years of experience creating memorable experiences. Specializing in technology events and conferences.</textarea>
                         </div>
                         
                         <div style="display: flex; gap: 15px; justify-content: flex-end;">

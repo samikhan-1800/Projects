@@ -145,12 +145,14 @@
                                 <th>Booking Date</th>
                                 <th>Tickets</th>
                                 <th>Amount</th>
-                                <th>Status</th>
+                                <th>Payment Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <!-- Content will be loaded by JavaScript -->
+                        <tbody id="bookingHistoryBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px;">Loading bookings...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -216,8 +218,14 @@
                     <form id="profileForm">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div class="form-group">
-                                <label class="form-label">Full Name</label>
-                                <input type="text" class="form-control" name="fullName" id="profileFullName" placeholder="Your full name" required>
+                                <label class="form-label">First Name</label>
+                                <input type="text" class="form-control" name="firstName" id="profileFirstName" placeholder="Your first name" required>
+                                <div class="form-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" class="form-control" name="lastName" id="profileLastName" placeholder="Your last name" required>
                                 <div class="form-error"></div>
                             </div>
                             
@@ -229,38 +237,26 @@
                             
                             <div class="form-group">
                                 <label class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" name="phone" id="profilePhone" placeholder="Your phone number" required>
+                                <input type="tel" class="form-control" name="phone" id="profilePhone" placeholder="Your phone number">
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
-                                <label class="form-label">Date of Birth</label>
-                                <input type="date" class="form-control" name="birthDate" id="profileBirthDate">
+                                <label class="form-label">Website</label>
+                                <input type="url" class="form-control" name="website" id="profileWebsite" placeholder="https://yourwebsite.com">
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
-                                <label class="form-label">City</label>
-                                <input type="text" class="form-control" name="city" id="profileCity" placeholder="Your city">
+                                <label class="form-label">Avatar URL</label>
+                                <input type="url" class="form-control" name="avatarUrl" id="profileAvatarUrl" placeholder="https://example.com/avatar.jpg">
                                 <div class="form-error"></div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Interests</label>
-                                <select class="form-control" name="interests" multiple>
-                                    <option value="technology">Technology</option>
-                                    <option value="music">Music</option>
-                                    <option value="business">Business</option>
-                                    <option value="art">Art</option>
-                                    <option value="sports">Sports</option>
-                                    <option value="food">Food & Wine</option>
-                                </select>
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Bio</label>
-                            <textarea class="form-control" name="bio" rows="4" placeholder="Tell us about yourself...">Event enthusiast and tech professional who loves discovering new experiences and networking opportunities.</textarea>
+                            <textarea class="form-control" name="bio" id="profileBio" rows="4" placeholder="Tell us about yourself...">Event enthusiast and tech professional who loves discovering new experiences and networking opportunities.</textarea>
                         </div>
                         
                         <div style="display: flex; gap: 15px; justify-content: flex-end;">
@@ -779,6 +775,216 @@
         function sendReferralEmail() {
             showAlert('Referral invitation sent!', 'success');
         }
+    </script>
+
+    <!-- Payment Upload Modal -->
+    <div id="paymentModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Upload Payment Proof</h2>
+                <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info" style="margin-bottom: 20px;">
+                    <strong>Payment Instructions:</strong><br>
+                    Please transfer the booking amount to our EasyPaisa account:<br>
+                    <strong style="font-size: 1.2em; display: block; margin: 10px 0;">Account: 03XX-XXXXXXX</strong>
+                    <strong style="font-size: 1.2em; display: block; margin: 10px 0;">Account Title: EventHub</strong>
+                    After payment, enter your transaction ID and upload screenshot below.
+                </div>
+
+                <form id="paymentProofForm" onsubmit="submitPaymentProof(event)">
+                    <input type="hidden" id="paymentBookingId" value="">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Booking Reference</label>
+                        <input type="text" class="form-control" id="paymentBookingRef" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Amount to Pay</label>
+                        <input type="text" class="form-control" id="paymentAmount" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Transaction ID / Reference Number *</label>
+                        <input type="text" class="form-control" id="transactionId" placeholder="Enter your transaction ID" required>
+                        <small style="color: #666;">Enter the transaction ID from your payment receipt</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Payment Receipt Screenshot *</label>
+                        <input type="file" class="form-control" id="paymentReceipt" accept="image/*" required onchange="previewReceipt(event)">
+                        <small style="color: #666;">Upload a clear screenshot of your payment receipt</small>
+                    </div>
+
+                    <div id="receiptPreview" style="margin-top: 15px; display: none;">
+                        <label class="form-label">Preview:</label>
+                        <img id="receiptPreviewImg" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 8px;">
+                    </div>
+
+                    <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn btn-outline" onclick="closePaymentModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit Payment Proof</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentBookingForPayment = null;
+
+        function openPaymentModal(booking) {
+            currentBookingForPayment = booking;
+            document.getElementById('paymentBookingId').value = booking.bookingId;
+            document.getElementById('paymentBookingRef').value = booking.bookingReference;
+            document.getElementById('paymentAmount').value = `$${booking.finalAmount || booking.totalPrice}`;
+            document.getElementById('transactionId').value = booking.transactionId || '';
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+            document.getElementById('paymentProofForm').reset();
+            document.getElementById('receiptPreview').style.display = 'none';
+        }
+
+        function previewReceipt(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('receiptPreviewImg').src = e.target.result;
+                    document.getElementById('receiptPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function submitPaymentProof(event) {
+            event.preventDefault();
+
+            const bookingId = document.getElementById('paymentBookingId').value;
+            const transactionId = document.getElementById('transactionId').value;
+            const receiptFile = document.getElementById('paymentReceipt').files[0];
+
+            if (!receiptFile) {
+                showAlert('Please upload payment receipt', 'warning');
+                return;
+            }
+
+            try {
+                // Convert image to base64
+                const base64Receipt = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(receiptFile);
+                });
+
+                // Update booking with payment proof
+                await fetch(`${API_BASE_URL}/bookings/${bookingId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        transactionId: transactionId,
+                        paymentReceiptUrl: base64Receipt,
+                        paymentStatus: 'Pending'
+                    })
+                });
+
+                showAlert('Payment proof submitted successfully! Awaiting organizer confirmation.', 'success');
+                closePaymentModal();
+                
+                // Reload booking history
+                loadBookingHistory();
+            } catch (error) {
+                console.error('Failed to submit payment proof:', error);
+                showAlert('Failed to submit payment proof. Please try again.', 'error');
+            }
+        }
+
+        async function loadBookingHistory() {
+            const tbody = document.getElementById('bookingHistoryBody');
+            if (!tbody) return;
+
+            try {
+                const bookings = await apiRequest('/bookings/my');
+                
+                if (!bookings || bookings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No bookings found</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = bookings.map(booking => {
+                    const eventDate = new Date(booking.eventStartDate || booking.createdAt);
+                    const bookingDate = new Date(booking.createdAt);
+                    const paymentBadge = booking.paymentStatus === 'Completed' ? 'success' : 
+                                        booking.paymentStatus === 'Failed' ? 'danger' : 'warning';
+                    
+                    return `
+                        <tr>
+                            <td>${booking.eventTitle || 'Event'}</td>
+                            <td>${eventDate.toLocaleDateString()}</td>
+                            <td>${bookingDate.toLocaleDateString()}</td>
+                            <td>${booking.quantity || 1}</td>
+                            <td>$${booking.finalAmount || booking.totalPrice || 0}</td>
+                            <td>
+                                <span class="badge badge-${paymentBadge}">${booking.paymentStatus || 'Pending'}</span>
+                                ${booking.paymentNotes ? `<br><small style="color: #666;">${booking.paymentNotes}</small>` : ''}
+                            </td>
+                            <td>
+                                ${booking.paymentStatus === 'Pending' && !booking.transactionId ?
+                                    `<button class="btn btn-small btn-primary" onclick='openPaymentModal(${JSON.stringify(booking).replace(/'/g, "&apos;")})'>
+                                        <i class="fas fa-upload"></i> Upload Payment
+                                    </button>` :
+                                booking.paymentStatus === 'Pending' && booking.transactionId ?
+                                    `<button class="btn btn-small btn-outline" onclick='openPaymentModal(${JSON.stringify(booking).replace(/'/g, "&apos;")})'>
+                                        <i class="fas fa-edit"></i> Update Payment
+                                    </button>
+                                    <span style="display: block; font-size: 0.8em; color: #666; margin-top: 5px;">Awaiting confirmation</span>` :
+                                booking.paymentStatus === 'Completed' ?
+                                    `<button class="btn btn-small btn-success" onclick="viewTicket('${booking.bookingId}')">
+                                        <i class="fas fa-ticket-alt"></i> View Ticket
+                                    </button>` :
+                                    `<span class="badge badge-danger">Payment ${booking.paymentStatus}</span>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load bookings:', error);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: red;">Failed to load bookings</td></tr>';
+            }
+        }
+
+        function viewTicket(bookingId) {
+            showAlert('Ticket download feature coming soon!', 'info');
+        }
+
+        // Load booking history when section is shown
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check hash and load appropriate section
+            const hash = window.location.hash.replace('#', '');
+            if (hash === 'booking-history') {
+                showSection('booking-history');
+                loadBookingHistory();
+            } else if (hash) {
+                showSection(hash);
+            }
+            
+            // Load booking history if on that section
+            setTimeout(() => {
+                if (document.getElementById('booking-history-section')?.style.display !== 'none') {
+                    loadBookingHistory();
+                }
+            }, 500);
+        });
     </script>
 </body>
 </html>

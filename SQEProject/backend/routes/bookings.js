@@ -234,6 +234,9 @@ router.get('/my', authenticateToken, async (req, res) => {
                 b.PaymentStatus as paymentStatus,
                 b.AttendeeInfo as attendeeInfo,
                 b.QrCode as qrCode,
+                b.TransactionId as transactionId,
+                b.PaymentReceiptUrl as paymentReceiptUrl,
+                b.PaymentNotes as paymentNotes,
                 b.CreatedAt as createdAt,
                 e.EventId as eventId,
                 e.Title as eventTitle,
@@ -320,6 +323,44 @@ router.get('/:id', authenticateToken, async (req, res) => {
         res.status(500).json({
             error: 'Failed to fetch booking'
         });
+    }
+});
+
+// Update booking with payment proof (users)
+router.put('/:id', authenticateToken, async (req, res) => {
+    try {
+        const bookingId = req.params.id;
+        const userId = req.user.userId;
+        const { transactionId, paymentReceiptUrl, paymentStatus } = req.body;
+
+        // Verify user owns this booking
+        const checkResult = await database.query(`
+            SELECT BookingId FROM [Events].[Bookings]
+            WHERE BookingId = @bookingId AND UserId = @userId
+        `, { bookingId, userId });
+
+        if (checkResult.recordset.length === 0) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        await database.query(`
+            UPDATE [Events].[Bookings]
+            SET TransactionId = @transactionId,
+                PaymentReceiptUrl = @paymentReceiptUrl,
+                PaymentStatus = @paymentStatus,
+                UpdatedAt = GETUTCDATE()
+            WHERE BookingId = @bookingId
+        `, {
+            bookingId,
+            transactionId: transactionId || null,
+            paymentReceiptUrl: paymentReceiptUrl || null,
+            paymentStatus: paymentStatus || 'Pending'
+        });
+
+        res.json({ message: 'Payment proof uploaded successfully' });
+    } catch (error) {
+        console.error('Failed to update booking:', error);
+        res.status(500).json({ error: 'Failed to update booking' });
     }
 });
 
