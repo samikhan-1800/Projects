@@ -154,7 +154,7 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Generate JWT token
+        // Generate JWT token - default to 24 hours (86400 seconds) for better UX
         const token = jwt.sign(
             { 
                 userId: user.UserId, 
@@ -162,7 +162,7 @@ router.post('/login', async (req, res) => {
                 userType: user.Role 
             },
             process.env.JWT_SECRET,
-            { expiresIn: `${process.env.JWT_EXPIRES_IN || 900}s` }
+            { expiresIn: `${process.env.JWT_EXPIRES_IN || 86400}s` }
         );
 
         // Update last login

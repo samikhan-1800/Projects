@@ -21,10 +21,9 @@
                 <a href="about.html" class="nav-link">About</a>
                 <a href="contact.html" class="nav-link">Contact</a>
                 <div class="nav-auth">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <span>Welcome, John!</span>
-                        <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
-                    </div>
+                    <!-- Will be updated dynamically by JavaScript -->
+                    <a href="login.html" class="btn btn-outline">Login</a>
+                    <a href="register.html" class="btn btn-primary">Register</a>
                 </div>
             </div>
             <div class="nav-toggle" id="navToggle">
@@ -68,7 +67,7 @@
                 <div class="dashboard-header">
                     <div>
                         <h1>Dashboard</h1>
-                        <p>Welcome back, John! Here's your event overview.</p>
+                        <p id="welcomeMessage">Welcome back! Here's your event overview.</p>
                     </div>
                     <a href="events.html" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Book New Event
@@ -218,40 +217,40 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div class="form-group">
                                 <label class="form-label">Full Name</label>
-                                <input type="text" class="form-control" name="fullName" value="John Doe" required>
+                                <input type="text" class="form-control" name="fullName" id="profileFullName" placeholder="Your full name" required>
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">Email Address</label>
-                                <input type="email" class="form-control" name="email" value="john@example.com" required>
+                                <input type="email" class="form-control" name="email" id="profileEmail" placeholder="Your email address" required>
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" name="phone" value="+1 (555) 123-4567" required>
+                                <input type="tel" class="form-control" name="phone" id="profilePhone" placeholder="Your phone number" required>
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">Date of Birth</label>
-                                <input type="date" class="form-control" name="birthDate" value="1990-01-15">
+                                <input type="date" class="form-control" name="birthDate" id="profileBirthDate">
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">City</label>
-                                <input type="text" class="form-control" name="city" value="New York">
+                                <input type="text" class="form-control" name="city" id="profileCity" placeholder="Your city">
                                 <div class="form-error"></div>
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">Interests</label>
                                 <select class="form-control" name="interests" multiple>
-                                    <option value="technology" selected>Technology</option>
+                                    <option value="technology">Technology</option>
                                     <option value="music">Music</option>
-                                    <option value="business" selected>Business</option>
+                                    <option value="business">Business</option>
                                     <option value="art">Art</option>
                                     <option value="sports">Sports</option>
                                     <option value="food">Food & Wine</option>
@@ -419,8 +418,161 @@
         </div>
     </div>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
     <script>
+        // currentUser and userBookings are defined in main.js
+        // Don't redeclare them here
+
+        // Check auth and load user data on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeDashboard();
+        });
+
+        async function initializeDashboard() {
+            // Use shared helpers if available
+            const getToken = (typeof StorageHelper !== 'undefined') ? 
+                StorageHelper.getAuthToken.bind(StorageHelper) : 
+                () => localStorage.getItem('authToken');
+            
+            // Check if user is logged in
+            const token = getToken();
+            if (!token) {
+                showAlert('Please log in to access your dashboard.', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
+
+            try {
+                // Fetch current user from API
+                currentUser = await apiRequest('/auth/me', { requireAuth: true });
+                
+                if (!currentUser) {
+                    throw new Error('Failed to load user data');
+                }
+
+                // Update navigation with user name - use shared helper if available
+                if (typeof NavigationHelper !== 'undefined') {
+                    NavigationHelper.updateNavigation();
+                } else {
+                    updateLocalNavigation();
+                }
+                
+                // Update welcome message
+                updateWelcomeMessage();
+                
+                // Load dashboard content
+                await loadUserDashboard();
+                
+            } catch (error) {
+                console.error('Failed to initialize dashboard:', error);
+                // If auth fails, redirect to login
+                if (typeof StorageHelper !== 'undefined') {
+                    StorageHelper.clearAuth();
+                } else {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                }
+                showAlert('Session expired. Please log in again.', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+            }
+        }
+
+        function updateLocalNavigation() {
+            // Update welcome message in nav
+            const navAuth = document.querySelector('.nav-auth');
+            if (navAuth && currentUser) {
+                const userName = currentUser.firstName || currentUser.name || 'User';
+                navAuth.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="color: white;">Welcome, ${userName}!</span>
+                        <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateWelcomeMessage() {
+            // Update dashboard header welcome message
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            if (welcomeMessage && currentUser) {
+                const userName = currentUser.firstName || currentUser.name || 'User';
+                welcomeMessage.textContent = `Welcome back, ${userName}! Here's your event overview.`;
+            }
+        }
+
+        async function loadUserDashboard() {
+            const dashboardContent = document.getElementById('dashboardContent');
+            
+            try {
+                // Fetch user's bookings
+                userBookings = await apiRequest('/bookings/my', { requireAuth: true }).catch(() => []);
+                
+                // Fetch events for the bookings
+                const allEvents = await fetchEvents().catch(() => []);
+                
+                // Get upcoming events from bookings
+                const upcomingBookings = userBookings.filter(booking => {
+                    const event = allEvents.find(e => e.eventId === booking.eventId);
+                    return event && new Date(event.startDate) > new Date();
+                });
+
+                // Get notifications count
+                const notifications = await apiRequest('/notifications/unread', { requireAuth: true }).catch(() => []);
+
+                dashboardContent.innerHTML = `
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-ticket-alt"></i>
+                            </div>
+                            <div class="stat-card-value">${upcomingBookings.length}</div>
+                            <div class="stat-card-label">Upcoming Events</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div class="stat-card-value">${userBookings.length}</div>
+                            <div class="stat-card-label">Total Bookings</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="stat-card-value">${Array.isArray(notifications) ? notifications.length : 0}</div>
+                            <div class="stat-card-label">Notifications</div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-section">
+                        <h2>Your Upcoming Events</h2>
+                        <div class="events-grid" id="upcomingEventsGrid">
+                            ${upcomingBookings.length > 0 ? 
+                                upcomingBookings.slice(0, 3).map(booking => {
+                                    const event = allEvents.find(e => e.eventId === booking.eventId);
+                                    return event ? createEventCard(event, false) : '';
+                                }).join('') :
+                                `<div class="text-center" style="grid-column: 1/-1; padding: 2rem;">
+                                    <i class="fas fa-calendar-times" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
+                                    <p>You have no upcoming events</p>
+                                    <a href="events.html" class="btn btn-primary">Browse Events</a>
+                                </div>`
+                            }
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                dashboardContent.innerHTML = '<p class="text-center">Unable to load dashboard. Please try again later.</p>';
+            }
+        }
+
         // Dashboard section management
         function showSection(sectionName) {
             // Hide all sections
@@ -434,65 +586,131 @@
             });
             
             // Show selected section
-            document.getElementById(sectionName + '-section').classList.add('active');
+            const section = document.getElementById(sectionName + '-section');
+            if (section) {
+                section.classList.add('active');
+            }
             
             // Add active class to clicked link
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
             
             // Load section-specific content
             switch(sectionName) {
+                case 'dashboard':
+                    loadUserDashboard();
+                    break;
                 case 'my-events':
                     loadMyEvents();
                     break;
                 case 'booking-history':
                     loadBookingHistory();
                     break;
+                case 'profile':
+                    loadProfileData();
+                    break;
             }
         }
 
-        function loadMyEvents() {
-            const user = window.EventHub.sampleUsers[0];
-            const myEvents = window.EventHub.sampleEvents.filter(event => user.bookedEvents.includes(event.id));
+        async function loadMyEvents() {
             const myEventsGrid = document.getElementById('myEventsGrid');
+            if (!myEventsGrid) return;
             
-            if (myEvents.length > 0) {
-                myEventsGrid.innerHTML = myEvents.map(event => window.EventHub.createEventCard(event)).join('');
-            } else {
-                myEventsGrid.innerHTML = `
-                    <div class="text-center" style="grid-column: 1 / -1; padding: 40px;">
-                        <i class="fas fa-calendar-times" style="font-size: 4rem; color: #ccc; margin-bottom: 20px;"></i>
-                        <h3>No Events Booked</h3>
-                        <p>You haven't booked any events yet. Start exploring!</p>
-                        <a href="events.html" class="btn btn-primary">Browse Events</a>
-                    </div>
-                `;
+            myEventsGrid.innerHTML = '<div class="text-center" style="grid-column: 1/-1;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            
+            try {
+                const bookings = await apiRequest('/bookings/my', { requireAuth: true }).catch(() => []);
+                const allEvents = await fetchEvents().catch(() => []);
+                
+                // Get future booked events
+                const myEvents = bookings
+                    .map(booking => allEvents.find(e => e.eventId === booking.eventId))
+                    .filter(event => event && new Date(event.startDate) > new Date());
+                
+                if (myEvents.length > 0) {
+                    myEventsGrid.innerHTML = myEvents.map(event => createEventCard(event, false)).join('');
+                } else {
+                    myEventsGrid.innerHTML = `
+                        <div class="text-center" style="grid-column: 1 / -1; padding: 40px;">
+                            <i class="fas fa-calendar-times" style="font-size: 4rem; color: #ccc; margin-bottom: 20px;"></i>
+                            <h3>No Upcoming Events</h3>
+                            <p>You haven't booked any upcoming events yet. Start exploring!</p>
+                            <a href="events.html" class="btn btn-primary">Browse Events</a>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load my events:', error);
+                myEventsGrid.innerHTML = '<p class="text-center">Failed to load events.</p>';
             }
         }
 
-        function loadBookingHistory() {
-            const user = window.EventHub.sampleUsers[0];
+        async function loadBookingHistory() {
             const tbody = document.querySelector('#bookingHistoryTable tbody');
+            if (!tbody) return;
             
-            tbody.innerHTML = user.bookingHistory.map(booking => {
-                const event = window.EventHub.sampleEvents.find(e => e.id === booking.eventId);
-                return `
-                    <tr>
-                        <td>${event ? event.title : 'Unknown Event'}</td>
-                        <td>${event ? new Date(event.date).toLocaleDateString() : 'N/A'}</td>
-                        <td>${new Date(booking.bookingDate).toLocaleDateString()}</td>
-                        <td>${booking.tickets}</td>
-                        <td>$${event ? (event.price * booking.tickets) : '0'}</td>
-                        <td><span class="badge badge-success">${booking.status}</span></td>
-                        <td>
-                            <button class="btn btn-small btn-outline" onclick="viewTicket(${booking.eventId})">View Ticket</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+            
+            try {
+                const bookings = await apiRequest('/bookings/my', { requireAuth: true }).catch(() => []);
+                const allEvents = await fetchEvents().catch(() => []);
+                
+                if (bookings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No bookings found</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = bookings.map(booking => {
+                    const event = allEvents.find(e => e.eventId === booking.eventId);
+                    const eventDate = event ? new Date(event.startDate).toLocaleDateString() : 'N/A';
+                    const bookingDate = new Date(booking.createdAt).toLocaleDateString();
+                    const statusClass = booking.status === 'Confirmed' ? 'success' : 
+                                       booking.status === 'Cancelled' ? 'danger' : 'warning';
+                    
+                    return `
+                        <tr>
+                            <td>${event ? event.title : 'Unknown Event'}</td>
+                            <td>${eventDate}</td>
+                            <td>${bookingDate}</td>
+                            <td>${booking.quantity}</td>
+                            <td>$${booking.finalAmount || booking.totalPrice || 0}</td>
+                            <td><span class="badge badge-${statusClass}">${booking.status}</span></td>
+                            <td>
+                                <button class="btn btn-small btn-outline" onclick="viewTicket('${booking.bookingId}')">View Ticket</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load booking history:', error);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load booking history</td></tr>';
+            }
+        }
+
+        function loadProfileData() {
+            if (!currentUser) return;
+            
+            // Pre-fill profile form with user data using IDs
+            const fullNameInput = document.getElementById('profileFullName');
+            const emailInput = document.getElementById('profileEmail');
+            const phoneInput = document.getElementById('profilePhone');
+            const birthDateInput = document.getElementById('profileBirthDate');
+            const cityInput = document.getElementById('profileCity');
+            
+            if (fullNameInput) fullNameInput.value = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || '';
+            if (emailInput) emailInput.value = currentUser.email || '';
+            if (phoneInput) phoneInput.value = currentUser.phone || '';
+            if (birthDateInput && currentUser.birthDate) birthDateInput.value = currentUser.birthDate;
+            if (cityInput && currentUser.city) cityInput.value = currentUser.city;
         }
 
         // Utility functions
         function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
             showAlert('Logged out successfully!', 'success');
             setTimeout(() => {
                 window.location.href = '../index.html';
@@ -526,31 +744,41 @@
             showAlert('Referral invitation sent!', 'success');
         }
 
-        function viewTicket(eventId) {
-            showAlert('Ticket viewer would open here', 'info');
+        function viewTicket(bookingId) {
+            showAlert('Ticket viewer coming soon!', 'info');
         }
 
         function editReminder(eventId) {
-            showAlert('Reminder editor would open here', 'info');
+            showAlert('Reminder editor coming soon!', 'info');
         }
 
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', () => {
-            loadUserDashboard();
-            
-            // Handle add reminder form
-            document.getElementById('addReminderForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                showAlert('Reminder added successfully!', 'success');
-                closeModal('addReminderModal');
-            });
-            
-            // Handle profile form
-            document.getElementById('profileForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                showAlert('Profile updated successfully!', 'success');
-            });
-        });
+        function downloadBookingHistory() {
+            showAlert('Booking history report downloaded!', 'success');
+        }
+
+        function changePassword() {
+            showAlert('Password change feature coming soon!', 'info');
+        }
+
+        function downloadData() {
+            showAlert('Your data export will be emailed to you within 24 hours', 'info');
+        }
+
+        function deleteAccount() {
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                showAlert('Account deletion request submitted', 'warning');
+            }
+        }
+
+        function copyReferralCode() {
+            const code = currentUser ? `${currentUser.firstName?.toUpperCase() || 'USER'}2025` : 'USER2025';
+            navigator.clipboard.writeText(code);
+            showAlert('Referral code copied to clipboard!', 'success');
+        }
+
+        function sendReferralEmail() {
+            showAlert('Referral invitation sent!', 'success');
+        }
     </script>
 </body>
 </html>

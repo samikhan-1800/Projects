@@ -1,5 +1,16 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:3000/api'; // Backend API running on port 3000
+/**
+ * EventHub Main JavaScript
+ * Uses shared utilities from utils.js
+ */
+
+// Ensure utils.js is loaded
+if (typeof EventHubConfig === 'undefined') {
+    console.warn('utils.js not loaded. Some features may not work properly.');
+}
+
+// API Configuration - use shared config or fallback
+const API_BASE_URL = (typeof EventHubConfig !== 'undefined') ? 
+    EventHubConfig.API_BASE_URL : 'http://localhost:3000/api';
 
 // Global data stores
 let events = [];
@@ -21,23 +32,39 @@ if (navToggle && navMenu) {
 // Close mobile menu when clicking on a link
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('nav-link')) {
-        navMenu.classList.remove('active');
+        if (navMenu) navMenu.classList.remove('active');
     }
 });
 
-// API Helper Functions
+// API Helper Functions - uses ApiHelper from utils.js if available
 async function apiRequest(endpoint, options = {}) {
+    // Use shared ApiHelper if available
+    if (typeof ApiHelper !== 'undefined') {
+        return ApiHelper.request(endpoint, options);
+    }
+    
+    // Fallback implementation
     const url = `${API_BASE_URL}${endpoint}`;
     const token = localStorage.getItem('authToken');
+    
+    // Define public endpoints that don't require authentication
+    const publicEndpoints = ['/events', '/events/categories', '/contact', '/auth/login', '/auth/register'];
+    const isPublicEndpoint = publicEndpoints.some(pe => endpoint === pe || endpoint.startsWith(pe + '/') || endpoint.startsWith(pe + '?'));
     
     const config = {
         headers: {
             'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
+            // Only send auth header for non-public endpoints or if explicitly needed
+            ...((token && !isPublicEndpoint) && { 'Authorization': `Bearer ${token}` }),
             ...(options.headers || {})
         },
         ...options
     };
+    
+    // If options explicitly wants auth, include the token
+    if (options.requireAuth && token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+    }
     
     try {
         const response = await fetch(url, config);
@@ -50,14 +77,22 @@ async function apiRequest(endpoint, options = {}) {
         }
         
         if (response.status === 401) {
-            // Unauthorized - clear auth and redirect to login
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('userType');
-            showAlert('Session expired. Please log in again.', 'warning');
-            if (!window.location.pathname.includes('login.html')) {
-                setTimeout(() => window.location.href = '/pages/login.html', 2000);
+            // Only clear auth and redirect for authenticated endpoints
+            // Don't logout user just because they're browsing public pages
+            if (!isPublicEndpoint) {
+                console.warn('Session expired for authenticated endpoint:', endpoint);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userType');
+                
+                // Only show alert and redirect if user was trying to access protected content
+                if (!window.location.pathname.includes('login.html') && 
+                    !window.location.pathname.includes('events.html') &&
+                    !window.location.pathname.includes('index.html')) {
+                    showAlert('Session expired. Please log in again.', 'warning');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                }
             }
             throw new Error('Unauthorized');
         }
@@ -124,11 +159,18 @@ async function fetchCurrentUser() {
         if (!token) {
             return null;
         }
-        currentUser = await apiRequest('/auth/me');
+        currentUser = await apiRequest('/auth/me', { requireAuth: true });
         return currentUser;
     } catch (error) {
         console.error('Failed to fetch current user:', error);
-        localStorage.removeItem('authToken'); // Remove invalid token
+        // Don't immediately remove token - it might be a network issue
+        // Only remove if it's definitely an auth error
+        if (error.message === 'Unauthorized') {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+        }
         return null;
     }
 }
@@ -201,24 +243,40 @@ async function loadFeaturedEvents() {
     }
 }
 
-// Create Event Card HTML
+// Create Event Card HTML - uses EventCardGenerator from utils.js if available
 function createEventCard(event, isFeatured = false) {
-    const formattedDate = new Date(event.startDate).toLocaleDateString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    // Use shared EventCardGenerator if available
+    if (typeof EventCardGenerator !== 'undefined') {
+        return EventCardGenerator.create(event, { 
+            showBookButton: !isFeatured,
+            isFromPagesFolder: false // Home page is in root
+        });
+    }
+    
+    // Fallback implementation
+    const formattedDate = (typeof DateHelper !== 'undefined') ? 
+        DateHelper.formatDate(event.startDate) :
+        new Date(event.startDate).toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
 
-    const formattedTime = new Date(event.startDate).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const formattedTime = (typeof DateHelper !== 'undefined') ?
+        DateHelper.formatTime(event.startDate) :
+        new Date(event.startDate).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
 
     const availableSeats = event.capacity - (event.bookingCount || 0);
+    const categoryIcon = (typeof UIHelper !== 'undefined') ? 
+        UIHelper.getCategoryIcon(event.categoryName) : 'calendar-alt';
+    
     const eventImage = event.featuredImageUrl ? 
-        `<img src="${event.featuredImageUrl}" alt="${event.title}" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\\'fas fa-calendar-alt\\'></i>'" />` : 
-        `<i class="fas fa-calendar-alt"></i>`;
+        `<img src="${event.featuredImageUrl}" alt="${event.title}" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\\'fas fa-${categoryIcon}\\'></i>'" />` : 
+        `<i class="fas fa-${categoryIcon}"></i>`;
 
     return `
         <div class="event-card">
@@ -238,7 +296,7 @@ function createEventCard(event, isFeatured = false) {
                     </div>
                     <div class="event-detail">
                         <i class="fas fa-map-marker-alt"></i>
-                        <span>${event.isOnline ? 'Online Event' : event.venueName}</span>
+                        <span>${event.isOnline ? 'Online Event' : (event.venueName || 'TBA')}</span>
                     </div>
                     <div class="event-detail">
                         <i class="fas fa-users"></i>
@@ -246,7 +304,7 @@ function createEventCard(event, isFeatured = false) {
                     </div>
                 </div>
                 <div class="event-price">
-                    ${event.isFree ? 'Free' : `$${event.price}`}
+                    ${event.isFree || event.price === 0 ? 'Free' : `$${event.price}`}
                 </div>
                 <div class="card-footer">
                     ${isFeatured ? 
@@ -401,8 +459,14 @@ async function bookEvent(eventId, ticketQuantity = 1, attendeeInfo = {}) {
     }
 }
 
-// Alert System
+// Alert System - uses UIHelper from utils.js if available
 function showAlert(message, type = 'info') {
+    // Use shared UIHelper if available
+    if (typeof UIHelper !== 'undefined') {
+        return UIHelper.showAlert(message, type);
+    }
+    
+    // Fallback implementation
     const alertContainer = document.getElementById('alertContainer') || createAlertContainer();
     const alertId = 'alert-' + Date.now();
     
@@ -784,10 +848,10 @@ async function loadUserDashboard() {
                             </thead>
                             <tbody>
                                 ${bookings.length > 0 ? bookings.map(booking => {
-                                    const event = bookedEvents.find(e => e.eventId === booking.eventId);
+                                    const event = upcomingEvents.find(e => e.eventId === booking.eventId) || { title: booking.eventTitle || 'Event' };
                                     return `
                                         <tr>
-                                            <td>${event ? event.title : 'Unknown Event'}</td>
+                                            <td>${event.title}</td>
                                             <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
                                             <td>${booking.quantity}</td>
                                             <td><span class="badge badge-${booking.status.toLowerCase() === 'confirmed' ? 'success' : 'warning'}">${booking.status}</span></td>
@@ -989,13 +1053,68 @@ async function handleFormSubmission(formType, form) {
     }
 }
 
+// Update navigation based on authentication state - uses NavigationHelper from utils.js if available
+function updateNavigation() {
+    // Use shared NavigationHelper if available
+    if (typeof NavigationHelper !== 'undefined') {
+        return NavigationHelper.updateNavigation();
+    }
+    
+    // Fallback implementation
+    const navAuth = document.querySelector('.nav-auth');
+    if (!navAuth) return;
+    
+    const token = localStorage.getItem('authToken');
+    const storedUser = localStorage.getItem('currentUser');
+    const userType = localStorage.getItem('userType');
+    
+    if (token && storedUser) {
+        try {
+            const user = JSON.parse(storedUser);
+            const userName = user.firstName || user.name || 'User';
+            
+            // Determine dashboard link based on user type
+            let dashboardLink = 'user-dashboard.html';
+            if (userType === 'Admin') {
+                dashboardLink = 'admin-dashboard.html';
+            } else if (userType === 'Organizer') {
+                dashboardLink = 'organizer-dashboard.html';
+            }
+            
+            // Check if we're in pages folder or root
+            const isInPagesFolder = window.location.pathname.includes('/pages/');
+            const prefix = isInPagesFolder ? '' : 'pages/';
+            
+            navAuth.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <a href="${prefix}${dashboardLink}" style="color: inherit; text-decoration: none;">
+                        <span style="cursor: pointer;">Welcome, ${userName}!</span>
+                    </a>
+                    <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
+                </div>
+            `;
+        } catch (e) {
+            console.error('Error parsing user data:', e);
+        }
+    } else {
+        // Show login/register buttons
+        const isInPagesFolder = window.location.pathname.includes('/pages/');
+        const prefix = isInPagesFolder ? '' : 'pages/';
+        
+        navAuth.innerHTML = `
+            <a href="${prefix}login.html" class="btn btn-outline">Login</a>
+            <a href="${prefix}register.html" class="btn btn-primary">Register</a>
+        `;
+    }
+}
+
 // Authentication check
 async function checkAuth() {
     const token = localStorage.getItem('authToken');
     if (token) {
         try {
             // Try to fetch current user from backend
-            const user = await apiRequest('/auth/me');
+            const user = await apiRequest('/auth/me', { requireAuth: true });
             currentUser = user;
             localStorage.setItem('currentUser', JSON.stringify(user));
         } catch (error) {
@@ -1013,13 +1132,32 @@ async function checkAuth() {
             }
         }
     }
+    
+    // Always update navigation based on current auth state
+    updateNavigation();
 }
 
-// Logout function
+// Logout function - uses AuthHelper from utils.js if available
 function logout() {
+    // Use shared AuthHelper if available
+    if (typeof AuthHelper !== 'undefined') {
+        return AuthHelper.logout();
+    }
+    
+    // Fallback implementation
     localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userType');
     currentUser = null;
-    window.location.href = '../index.html';
+    
+    showAlert('Logged out successfully!', 'success');
+    
+    // Redirect to home page - handle both root and pages folder
+    const isInPagesFolder = window.location.pathname.includes('/pages/');
+    setTimeout(() => {
+        window.location.href = isInPagesFolder ? '../index.html' : 'index.html';
+    }, 1500);
 }
 
 // Initialize page-specific functions
@@ -1122,6 +1260,8 @@ function hostEvent() {
 window.hostEvent = hostEvent;
 window.quickBookEvent = quickBookEvent;
 window.loadFeaturedEvents = loadFeaturedEvents;
+window.logout = logout;
+window.updateNavigation = updateNavigation;
 
 // Export functions for use in other files
 window.EventHub = {
@@ -1139,5 +1279,6 @@ window.EventHub = {
     checkAuth,
     apiRequest,
     loadFeaturedEvents,
-    loadUserDashboard
+    loadUserDashboard,
+    updateNavigation
 };

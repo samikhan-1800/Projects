@@ -1357,3 +1357,14 @@ p {
 .text-warning { color: var(--color-warning); }
 .text-info { color: var(--color-info); }
 .text-muted { color: var(--color-muted); }
+
+/* Loading placeholder styles */
+.loading-placeholder i.fa-spinner {
+    color: var(--color-primary);
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+.loading-placeholder td {
+    color: var(--color-muted);
+}

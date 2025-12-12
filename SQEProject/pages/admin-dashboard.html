@@ -318,56 +318,11 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div>
-                                        <strong>John Doe</strong>
-                                        <small class="text-muted d-block">ID: 1001</small>
-                                    </div>
-                                </td>
-                                <td>john@example.com</td>
-                                <td><span class="badge badge-info">User</span></td>
-                                <td>Jan 15, 2025</td>
-                                <td>3 booked</td>
-                                <td><span class="badge badge-success">Active</span></td>
-                                <td>
-                                    <button class="btn btn-small btn-outline" onclick="viewUser(1001)">View</button>
-                                    <button class="btn btn-small btn-warning" onclick="suspendUser(1001)">Suspend</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div>
-                                        <strong>Jane Smith</strong>
-                                        <small class="text-muted d-block">ID: 1002</small>
-                                    </div>
-                                </td>
-                                <td>jane@techevents.com</td>
-                                <td><span class="badge badge-primary">Organizer</span></td>
-                                <td>Feb 10, 2025</td>
-                                <td>12 created</td>
-                                <td><span class="badge badge-success">Active</span></td>
-                                <td>
-                                    <button class="btn btn-small btn-outline" onclick="viewUser(1002)">View</button>
-                                    <button class="btn btn-small btn-success" onclick="promoteUser(1002)">Promote</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div>
-                                        <strong>Mike Johnson</strong>
-                                        <small class="text-muted d-block">ID: 1003</small>
-                                    </div>
-                                </td>
-                                <td>mike@example.com</td>
-                                <td><span class="badge badge-secondary">Admin</span></td>
-                                <td>Jan 1, 2025</td>
-                                <td>-</td>
-                                <td><span class="badge badge-success">Active</span></td>
-                                <td>
-                                    <button class="btn btn-small btn-outline" onclick="viewUser(1003)">View</button>
-                                    <button class="btn btn-small btn-outline" onclick="editPermissions(1003)">Permissions</button>
+                        <tbody id="usersTableBody">
+                            <!-- Users will be loaded dynamically -->
+                            <tr class="loading-placeholder">
+                                <td colspan="7" style="text-align: center; padding: 40px;">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading users...
                                 </td>
                             </tr>
                         </tbody>
@@ -430,59 +385,11 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div>
-                                        <strong>Tech Conference 2025</strong>
-                                        <small class="text-muted d-block">ID: 001</small>
-                                    </div>
-                                </td>
-                                <td>TechEvents Inc.</td>
-                                <td>Nov 15, 2025</td>
-                                <td>Technology</td>
-                                <td>350/500</td>
-                                <td>$104,650</td>
-                                <td><span class="badge badge-success">Approved</span></td>
-                                <td>
-                                    <button class="btn btn-small btn-outline" onclick="viewEvent(1)">View</button>
-                                    <button class="btn btn-small btn-warning" onclick="suspendEvent(1)">Suspend</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div>
-                                        <strong>Digital Marketing Summit</strong>
-                                        <small class="text-muted d-block">ID: 007</small>
-                                    </div>
-                                </td>
-                                <td>Marketing Pro LLC</td>
-                                <td>Dec 1, 2025</td>
-                                <td>Business</td>
-                                <td>0/200</td>
-                                <td>$0</td>
-                                <td><span class="badge badge-warning">Pending</span></td>
-                                <td>
-                                    <button class="btn btn-small btn-success" onclick="approveEvent(7)">Approve</button>
-                                    <button class="btn btn-small btn-danger" onclick="rejectEvent(7)">Reject</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div>
-                                        <strong>Art Gallery Opening</strong>
-                                        <small class="text-muted d-block">ID: 004</small>
-                                    </div>
-                                </td>
-                                <td>Modern Art Museum</td>
-                                <td>Nov 5, 2025</td>
-                                <td>Art</td>
-                                <td>75/150</td>
-                                <td>$2,625</td>
-                                <td><span class="badge badge-success">Approved</span></td>
-                                <td>
-                                    <button class="btn btn-small btn-outline" onclick="viewEvent(4)">View</button>
-                                    <button class="btn btn-small btn-outline" onclick="generateReport(4)">Report</button>
+                        <tbody id="eventsTableBody">
+                            <!-- Events will be loaded dynamically -->
+                            <tr class="loading-placeholder">
+                                <td colspan="8" style="text-align: center; padding: 40px;">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading events...
                                 </td>
                             </tr>
                         </tbody>
@@ -921,43 +828,11 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td>#T001</td>
-                                <td>John Doe</td>
-                                <td>Payment not processed</td>
-                                <td>Billing</td>
-                                <td><span class="badge badge-danger">High</span></td>
-                                <td><span class="badge badge-warning">Open</span></td>
-                                <td>2 hours ago</td>
-                                <td>
-                                    <button class="btn btn-small btn-primary" onclick="respondToTicket('T001')">Respond</button>
-                                    <button class="btn btn-small btn-outline" onclick="viewTicket('T001')">View</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#T002</td>
-                                <td>Sarah Johnson</td>
-                                <td>Event not showing up</td>
-                                <td>Technical</td>
-                                <td><span class="badge badge-warning">Medium</span></td>
-                                <td><span class="badge badge-info">In Progress</span></td>
-                                <td>5 hours ago</td>
-                                <td>
-                                    <button class="btn btn-small btn-success" onclick="resolveTicket('T002')">Resolve</button>
-                                    <button class="btn btn-small btn-outline" onclick="viewTicket('T002')">View</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>#T003</td>
-                                <td>Mike Davis</td>
-                                <td>General inquiry</td>
-                                <td>General</td>
-                                <td><span class="badge badge-info">Low</span></td>
-                                <td><span class="badge badge-success">Resolved</span></td>
-                                <td>1 day ago</td>
-                                <td>
-                                    <button class="btn btn-small btn-outline" onclick="viewTicket('T003')">View</button>
+                        <tbody id="ticketsTableBody">
+                            <!-- Tickets will be loaded dynamically -->
+                            <tr class="loading-placeholder">
+                                <td colspan="8" style="text-align: center; padding: 40px;">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading tickets...
                                 </td>
                             </tr>
                         </tbody>
@@ -967,6 +842,7 @@
         </div>
     </div>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
     <script>
         // Dashboard section management
@@ -990,82 +866,86 @@
 
         // Event management functions
         function approveEvent(eventId) {
-            window.EventHub.showAlert(`Event ${eventId} approved successfully!`, 'success');
+            showAlert(`Event ${eventId} approved successfully!`, 'success');
         }
 
         function rejectEvent(eventId) {
             const reason = prompt('Please provide a reason for rejection:');
             if (reason) {
-                window.EventHub.showAlert(`Event ${eventId} rejected. Reason: ${reason}`, 'warning');
+                showAlert(`Event ${eventId} rejected. Reason: ${reason}`, 'warning');
             }
         }
 
         function suspendEvent(eventId) {
             if (confirm('Are you sure you want to suspend this event?')) {
-                window.EventHub.showAlert(`Event ${eventId} suspended successfully!`, 'warning');
+                showAlert(`Event ${eventId} suspended successfully!`, 'warning');
             }
         }
 
         function viewEvent(eventId) {
-            window.EventHub.showAlert(`Viewing event ${eventId} details...`, 'info');
+            showAlert(`Viewing event ${eventId} details...`, 'info');
         }
 
         function generateReport(eventId) {
-            window.EventHub.showAlert(`Generating report for event ${eventId}...`, 'info');
+            showAlert(`Generating report for event ${eventId}...`, 'info');
         }
 
         // User management functions
         function viewUser(userId) {
-            window.EventHub.showAlert(`Viewing user ${userId} profile...`, 'info');
+            showAlert(`Viewing user ${userId} profile...`, 'info');
         }
 
         function suspendUser(userId) {
             if (confirm('Are you sure you want to suspend this user?')) {
-                window.EventHub.showAlert(`User ${userId} suspended successfully!`, 'warning');
+                showAlert(`User ${userId} suspended successfully!`, 'warning');
             }
         }
 
         function promoteUser(userId) {
-            window.EventHub.showAlert(`User ${userId} promoted to admin!`, 'success');
+            showAlert(`User ${userId} promoted to admin!`, 'success');
         }
 
         function editPermissions(userId) {
-            window.EventHub.showAlert(`Opening permissions editor for user ${userId}...`, 'info');
+            showAlert(`Opening permissions editor for user ${userId}...`, 'info');
         }
 
         // Approval workflow functions
         function verifyOrganizer(id) {
-            window.EventHub.showAlert(`Organizer ${id} verified successfully!`, 'success');
+            showAlert(`Organizer ${id} verified successfully!`, 'success');
         }
 
         function requestInfo(id) {
-            window.EventHub.showAlert(`Additional information requested from organizer ${id}`, 'info');
+            showAlert(`Additional information requested from organizer ${id}`, 'info');
         }
 
         function reviewReport(id) {
-            window.EventHub.showAlert(`Opening report ${id} for review...`, 'info');
+            showAlert(`Opening report ${id} for review...`, 'info');
         }
 
         function takeAction(id) {
-            window.EventHub.showAlert(`Taking action on report ${id}...`, 'warning');
+            showAlert(`Taking action on report ${id}...`, 'warning');
         }
 
         // Support functions
         function respondToTicket(ticketId) {
-            window.EventHub.showAlert(`Opening response form for ticket ${ticketId}...`, 'info');
+            showAlert(`Opening response form for ticket ${ticketId}...`, 'info');
         }
 
         function viewTicket(ticketId) {
-            window.EventHub.showAlert(`Viewing ticket ${ticketId} details...`, 'info');
+            showAlert(`Viewing ticket ${ticketId} details...`, 'info');
         }
 
         function resolveTicket(ticketId) {
-            window.EventHub.showAlert(`Ticket ${ticketId} marked as resolved!`, 'success');
+            showAlert(`Ticket ${ticketId} marked as resolved!`, 'success');
         }
 
         // Utility functions
         function logout() {
-            window.EventHub.showAlert('Logged out successfully!', 'success');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            showAlert('Logged out successfully!', 'success');
             setTimeout(() => {
                 window.location.href = '../index.html';
             }, 1500);
@@ -1073,12 +953,36 @@
 
         // Initialize admin dashboard
         document.addEventListener('DOMContentLoaded', () => {
+            // Check if user is admin
+            const userType = localStorage.getItem('userType');
+            if (userType !== 'Admin') {
+                showAlert('Access denied. Admin privileges required.', 'danger');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
+            
+            // Update navigation with user name
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    const navAuthSpan = document.querySelector('.nav-auth span');
+                    if (navAuthSpan) {
+                        navAuthSpan.textContent = `Welcome, ${user.firstName}!`;
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                }
+            }
+            
             // Add event listeners for forms and filters
             const forms = document.querySelectorAll('form');
             forms.forEach(form => {
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    window.EventHub.showAlert('Settings updated successfully!', 'success');
+                    showAlert('Settings updated successfully!', 'success');
                 });
             });
         });

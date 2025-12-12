@@ -311,288 +311,453 @@
         </div>
     </footer>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
     <script>
         let currentEvent = null;
+        let loggedInUser = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadEventDetail();
-            loadRelatedEvents();
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if user is logged in and get their info
+            loggedInUser = getLoggedInUser();
+            updateNavigationAuth();
+            
+            await loadEventDetail();
+            await loadRelatedEvents();
         });
 
-        function loadEventDetail() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const eventId = parseInt(urlParams.get('id'));
-            currentEvent = window.EventHub.sampleEvents.find(e => e.id === eventId);
+        // Get logged in user from localStorage
+        function getLoggedInUser() {
+            const token = localStorage.getItem('authToken');
+            const storedUser = localStorage.getItem('currentUser');
+            
+            if (token && storedUser) {
+                try {
+                    return JSON.parse(storedUser);
+                } catch (e) {
+                    console.error('Error parsing stored user:', e);
+                    return null;
+                }
+            }
+            return null;
+        }
 
-            if (!currentEvent) {
-                document.getElementById('eventDetail').innerHTML = `
-                    <div class="text-center" style="padding: 60px 20px;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 4rem; color: #ffc107; margin-bottom: 20px;"></i>
-                        <h1>Event Not Found</h1>
-                        <p>The event you're looking for doesn't exist or may have been removed.</p>
-                        <a href="events.html" class="btn btn-primary">Browse All Events</a>
+        // Update navigation to show logged-in user
+        function updateNavigationAuth() {
+            const navAuth = document.querySelector('.nav-auth');
+            
+            if (loggedInUser && navAuth) {
+                const userType = localStorage.getItem('userType');
+                const dashboardUrl = userType === 'Admin' ? 'admin-dashboard.html' : 
+                                    userType === 'Organizer' ? 'organizer-dashboard.html' : 
+                                    'user-dashboard.html';
+                
+                navAuth.innerHTML = `
+                    <span style="color: white; margin-right: 10px;">Welcome, ${loggedInUser.firstName || 'User'}!</span>
+                    <a href="${dashboardUrl}" class="btn btn-outline">Dashboard</a>
+                    <button onclick="handleLogout()" class="btn btn-primary">Logout</button>
+                `;
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            window.location.href = '../index.html';
+        }
+
+        // Generate booking form HTML based on login status
+        function generateBookingFormHTML(availableSeats) {
+            const isLoggedIn = !!loggedInUser;
+            const userFullName = isLoggedIn ? `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim() : '';
+            const userEmail = isLoggedIn ? loggedInUser.email || '' : '';
+            const userPhone = isLoggedIn ? loggedInUser.phone || '' : '';
+            
+            if (!isLoggedIn) {
+                // Show login prompt for guests
+                return `
+                    <div class="text-center" style="padding: 20px;">
+                        <i class="fas fa-user-lock" style="font-size: 3rem; color: #667eea; margin-bottom: 15px;"></i>
+                        <h4>Login Required</h4>
+                        <p style="color: #666; margin-bottom: 20px;">Please log in to book tickets for this event.</p>
+                        <a href="login.html?redirect=${encodeURIComponent(window.location.href)}" class="btn btn-primary w-100">
+                            <i class="fas fa-sign-in-alt"></i> Login to Book
+                        </a>
+                        <p style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                            Don't have an account? <a href="register.html">Register here</a>
+                        </p>
                     </div>
                 `;
+            }
+            
+            // For logged-in users, show simplified form with pre-filled data
+            return `
+                <form id="bookingForm">
+                    <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <p style="margin: 0; color: #333;">
+                            <i class="fas fa-user-check" style="color: #28a745;"></i>
+                            Booking as: <strong>${userFullName || userEmail}</strong>
+                        </p>
+                        <small style="color: #666;">${userEmail}</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Number of Tickets</label>
+                        <select class="form-control" name="tickets" required ${availableSeats <= 0 ? 'disabled' : ''}>
+                            <option value="">Select tickets</option>
+                            ${[1,2,3,4,5].map(i => 
+                                i <= Math.min(availableSeats, 5) ? 
+                                `<option value="${i}">${i} Ticket${i > 1 ? 's' : ''}</option>` : ''
+                            ).join('')}
+                        </select>
+                        <div class="form-error"></div>
+                    </div>
+                    
+                    <!-- Hidden fields with user data -->
+                    <input type="hidden" name="fullName" value="${userFullName}">
+                    <input type="hidden" name="email" value="${userEmail}">
+                    <input type="hidden" name="phone" value="${userPhone}">
+                    
+                    <div class="total-price">
+                        <strong>Total: ${currentEvent.isFree ? 'Free' : '$<span id="totalPrice">' + (currentEvent.price || 0) + '</span>'}</strong>
+                    </div>
+                    
+                    <button type="submit" class="btn ${availableSeats > 0 ? 'btn-primary' : 'btn-secondary'} w-100" ${availableSeats <= 0 ? 'disabled' : ''}>
+                        ${availableSeats > 0 ? '<i class="fas fa-ticket-alt"></i> Book Now' : 'Sold Out'}
+                    </button>
+                    
+                    ${availableSeats > 0 ? `
+                        <p class="text-center mt-3" style="font-size: 0.9rem; color: #666;">
+                            <i class="fas fa-shield-alt"></i> Secure booking with instant confirmation
+                        </p>
+                    ` : ''}
+                </form>
+            `;
+        }
+
+        async function loadEventDetail() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const eventId = urlParams.get('id');
+            
+            if (!eventId) {
+                showEventNotFound();
                 return;
             }
 
-            const formattedDate = new Date(currentEvent.date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-
-            // Set page title
-            document.title = `${currentEvent.title} - EventHub`;
-
-            document.getElementById('eventDetail').innerHTML = `
-                <div class="event-detail-header">
-                    <div class="event-detail-image">
-                        <i class="${currentEvent.image}"></i>
-                    </div>
-                    <div class="event-detail-info">
-                        <h1>${currentEvent.title}</h1>
-                        <div class="event-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span>${formattedDate}</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-clock"></i>
-                                <span>${currentEvent.time}</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span>${currentEvent.venue}</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-user"></i>
-                                <span>Organized by ${currentEvent.organizer}</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-tag"></i>
-                                <span>${currentEvent.category}</span>
-                            </div>
-                        </div>
-                        <div class="event-price-large">$${currentEvent.price}</div>
-                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                            <button class="btn btn-outline" onclick="openModal('shareModal'); updateShareModal()">
-                                <i class="fas fa-share-alt"></i> Share Event
-                            </button>
-                            <button class="btn btn-outline" onclick="openModal('calendarModal')">
-                                <i class="fas fa-calendar-plus"></i> Add to Calendar
-                            </button>
-                            <button class="btn btn-outline" onclick="toggleFavorite()">
-                                <i class="far fa-heart"></i> Save Event
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            try {
+                // Fetch event from API
+                currentEvent = await apiRequest(`/events/${eventId}`);
                 
-                <div class="event-detail-content">
-                    <div class="event-description">
-                        <h3>About This Event</h3>
-                        <p>${currentEvent.description}</p>
-                        
-                        <h3>Event Details</h3>
-                        <ul>
-                            <li><strong>Category:</strong> ${currentEvent.category}</li>
-                            <li><strong>Duration:</strong> 6 hours</li>
-                            <li><strong>Language:</strong> English</li>
-                            <li><strong>Age Requirement:</strong> 18+</li>
-                            <li><strong>Dress Code:</strong> Business Casual</li>
-                            <li><strong>Parking:</strong> Available on-site</li>
-                        </ul>
-                        
-                        <h3>What's Included</h3>
-                        <ul>
-                            <li>✓ Event access and materials</li>
-                            <li>✓ Welcome refreshments</li>
-                            <li>✓ Networking opportunities</li>
-                            <li>✓ Digital certificate of attendance</li>
-                            <li>✓ Event photos and highlights</li>
-                        </ul>
-                        
-                        <h3>Venue Information</h3>
-                        <div class="organizer-info">
-                            <h4>${currentEvent.venue}</h4>
-                            <p><i class="fas fa-map-marker-alt"></i> 123 Event Street, City, State 12345</p>
-                            <p><i class="fas fa-phone"></i> (555) 123-4567</p>
-                            <p><i class="fas fa-globe"></i> www.venue-website.com</p>
-                            <p><i class="fas fa-parking"></i> Free parking available</p>
-                            <p><i class="fas fa-wheelchair"></i> Wheelchair accessible</p>
+                if (!currentEvent) {
+                    showEventNotFound();
+                    return;
+                }
+
+                const formattedDate = new Date(currentEvent.startDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                const formattedTime = new Date(currentEvent.startDate).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const availableSeats = currentEvent.capacity - (currentEvent.bookingCount || 0);
+                const eventImage = currentEvent.featuredImageUrl ? 
+                    `<img src="${currentEvent.featuredImageUrl}" alt="${currentEvent.title}" style="width: 100%; height: 100%; object-fit: cover;" />` : 
+                    `<i class="fas fa-calendar-alt"></i>`;
+
+                // Set page title
+                document.title = `${currentEvent.title} - EventHub`;
+
+                document.getElementById('eventDetail').innerHTML = `
+                    <div class="event-detail-header">
+                        <div class="event-detail-image">
+                            ${eventImage}
                         </div>
-                        
-                        <h3>Organizer</h3>
-                        <div class="organizer-info">
-                            <h4>${currentEvent.organizer}</h4>
-                            <p>Professional event organizer with 10+ years of experience creating memorable experiences. Specializing in ${currentEvent.category.toLowerCase()} events.</p>
-                            <p><i class="fas fa-envelope"></i> contact@organizer.com</p>
-                            <p><i class="fas fa-phone"></i> (555) 987-6543</p>
-                            <div style="margin-top: 15px;">
-                                <button class="btn btn-outline btn-small">Contact Organizer</button>
-                                <button class="btn btn-outline btn-small">View Other Events</button>
-                            </div>
-                        </div>
-                        
-                        <h3>Terms & Conditions</h3>
-                        <ul>
-                            <li>Tickets are non-refundable but transferable</li>
-                            <li>Event may be cancelled due to unforeseen circumstances</li>
-                            <li>Photography and videography will take place during the event</li>
-                            <li>Outside food and beverages are not permitted</li>
-                            <li>Valid ID required for entry</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="booking-form-container">
-                        <div class="card">
-                            <div class="card-header">
-                                <h3>Book Your Tickets</h3>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                                    <span class="badge ${currentEvent.available > 50 ? 'badge-success' : currentEvent.available > 0 ? 'badge-warning' : 'badge-danger'}">
-                                        ${currentEvent.available > 0 ? `${currentEvent.available} seats available` : 'Sold Out'}
-                                    </span>
-                                    <span style="color: #666; font-size: 0.9rem;">${currentEvent.capacity - currentEvent.available} already booked</span>
+                        <div class="event-detail-info">
+                            <h1>${currentEvent.title}</h1>
+                            <div class="event-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>${formattedDate}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${formattedTime}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${currentEvent.isOnline ? 'Online Event' : currentEvent.venueName || 'TBA'}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-user"></i>
+                                    <span>Organized by ${currentEvent.organizerName || 'EventHub'}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-tag"></i>
+                                    <span>${currentEvent.categoryName || 'General'}</span>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <form id="bookingForm">
-                                    <div class="form-group">
-                                        <label class="form-label">Number of Tickets</label>
-                                        <select class="form-control" name="tickets" required ${currentEvent.available <= 0 ? 'disabled' : ''}>
-                                            <option value="">Select tickets</option>
-                                            ${[1,2,3,4,5].map(i => 
-                                                i <= Math.min(currentEvent.available, 5) ? 
-                                                `<option value="${i}">${i} Ticket${i > 1 ? 's' : ''}</option>` : ''
-                                            ).join('')}
-                                        </select>
-                                        <div class="form-error"></div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label class="form-label">Full Name</label>
-                                        <input type="text" class="form-control" name="fullName" required ${currentEvent.available <= 0 ? 'disabled' : ''}>
-                                        <div class="form-error"></div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label class="form-label">Email Address</label>
-                                        <input type="email" class="form-control" name="email" required ${currentEvent.available <= 0 ? 'disabled' : ''}>
-                                        <div class="form-error"></div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label class="form-label">Phone Number</label>
-                                        <input type="tel" class="form-control" name="phone" required ${currentEvent.available <= 0 ? 'disabled' : ''}>
-                                        <div class="form-error"></div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label class="form-label">Special Requirements (Optional)</label>
-                                        <textarea class="form-control" name="requirements" rows="3" placeholder="Dietary restrictions, accessibility needs, etc." ${currentEvent.available <= 0 ? 'disabled' : ''}></textarea>
-                                    </div>
-                                    
-                                    <div class="total-price">
-                                        <strong>Total: $<span id="totalPrice">${currentEvent.price}</span></strong>
-                                    </div>
-                                    
-                                    <button type="submit" class="btn ${currentEvent.available > 0 ? 'btn-primary' : 'btn-secondary'} w-100" ${currentEvent.available <= 0 ? 'disabled' : ''}>
-                                        ${currentEvent.available > 0 ? 'Book Now' : 'Sold Out'}
-                                    </button>
-                                    
-                                    ${currentEvent.available > 0 ? `
-                                        <p class="text-center mt-3" style="font-size: 0.9rem; color: #666;">
-                                            <i class="fas fa-shield-alt"></i> Secure booking with instant confirmation
-                                        </p>
-                                    ` : ''}
-                                </form>
-                            </div>
-                        </div>
-                        
-                        <div class="card mt-4">
-                            <div class="card-header">
-                                <h4>Event Highlights</h4>
-                            </div>
-                            <div class="card-body">
-                                <ul style="list-style: none; padding: 0;">
-                                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                                        <i class="fas fa-check text-success"></i> 
-                                        <span style="margin-left: 10px;">Expert speakers</span>
-                                    </li>
-                                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                                        <i class="fas fa-check text-success"></i> 
-                                        <span style="margin-left: 10px;">Networking opportunities</span>
-                                    </li>
-                                    <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                                        <i class="fas fa-check text-success"></i> 
-                                        <span style="margin-left: 10px;">Free refreshments</span>
-                                    </li>
-                                    <li style="padding: 8px 0;">
-                                        <i class="fas fa-check text-success"></i> 
-                                        <span style="margin-left: 10px;">Digital resources</span>
-                                    </li>
-                                </ul>
+                            <div class="event-price-large">${currentEvent.isFree ? 'Free' : '$' + currentEvent.price}</div>
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                <button class="btn btn-outline" onclick="openModal('shareModal'); updateShareModal()">
+                                    <i class="fas fa-share-alt"></i> Share Event
+                                </button>
+                                <button class="btn btn-outline" onclick="openModal('calendarModal')">
+                                    <i class="fas fa-calendar-plus"></i> Add to Calendar
+                                </button>
+                                <button class="btn btn-outline" onclick="toggleFavorite()">
+                                    <i class="far fa-heart"></i> Save Event
+                                </button>
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="event-detail-content">
+                        <div class="event-description">
+                            <h3>About This Event</h3>
+                            <p>${currentEvent.description || currentEvent.shortDescription || 'No description available.'}</p>
+                            
+                            <h3>Event Details</h3>
+                            <ul>
+                                <li><strong>Category:</strong> ${currentEvent.categoryName || 'General'}</li>
+                                <li><strong>Duration:</strong> ${calculateDuration(currentEvent.startDate, currentEvent.endDate)}</li>
+                                <li><strong>Language:</strong> English</li>
+                                ${currentEvent.requirements ? `<li><strong>Requirements:</strong> ${currentEvent.requirements}</li>` : ''}
+                            </ul>
+                            
+                            <h3>What's Included</h3>
+                            <ul>
+                                <li>✓ Event access and materials</li>
+                                <li>✓ Welcome refreshments</li>
+                                <li>✓ Networking opportunities</li>
+                                <li>✓ Digital certificate of attendance</li>
+                                <li>✓ Event photos and highlights</li>
+                            </ul>
+                            
+                            <h3>Venue Information</h3>
+                            <div class="organizer-info">
+                                <h4>${currentEvent.isOnline ? 'Online Event' : currentEvent.venueName || 'TBA'}</h4>
+                                ${!currentEvent.isOnline && currentEvent.venueAddress ? `<p><i class="fas fa-map-marker-alt"></i> ${currentEvent.venueAddress}${currentEvent.venueCity ? ', ' + currentEvent.venueCity : ''}${currentEvent.venueState ? ', ' + currentEvent.venueState : ''}</p>` : ''}
+                                ${currentEvent.contactPhone ? `<p><i class="fas fa-phone"></i> ${currentEvent.contactPhone}</p>` : ''}
+                                ${currentEvent.contactEmail ? `<p><i class="fas fa-envelope"></i> ${currentEvent.contactEmail}</p>` : ''}
+                                <p><i class="fas fa-wheelchair"></i> Wheelchair accessible</p>
+                            </div>
+                            
+                            <h3>Organizer</h3>
+                            <div class="organizer-info">
+                                <h4>${currentEvent.organizerName || currentEvent.organizationName || 'EventHub'}</h4>
+                                <p>Professional event organizer specializing in ${(currentEvent.categoryName || 'various').toLowerCase()} events.</p>
+                                ${currentEvent.contactEmail ? `<p><i class="fas fa-envelope"></i> ${currentEvent.contactEmail}</p>` : ''}
+                                ${currentEvent.contactPhone ? `<p><i class="fas fa-phone"></i> ${currentEvent.contactPhone}</p>` : ''}
+                            </div>
+                            
+                            <h3>Terms & Conditions</h3>
+                            <ul>
+                                <li>Tickets are non-refundable but transferable</li>
+                                <li>Event may be cancelled due to unforeseen circumstances</li>
+                                <li>Photography and videography will take place during the event</li>
+                                <li>Valid ID required for entry</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="booking-form-container">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3>Book Your Tickets</h3>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                        <span class="badge ${availableSeats > 50 ? 'badge-success' : availableSeats > 0 ? 'badge-warning' : 'badge-danger'}">
+                                            ${availableSeats > 0 ? `${availableSeats} seats available` : 'Sold Out'}
+                                        </span>
+                                        <span style="color: #666; font-size: 0.9rem;">${currentEvent.bookingCount || 0} already booked</span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    ${generateBookingFormHTML(availableSeats)}
+                                </div>
+                            </div>
+                            
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <h4>Event Highlights</h4>
+                                </div>
+                                <div class="card-body">
+                                    <ul style="list-style: none; padding: 0;">
+                                        <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                                            <i class="fas fa-check text-success"></i> 
+                                            <span style="margin-left: 10px;">Expert speakers</span>
+                                        </li>
+                                        <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                                            <i class="fas fa-check text-success"></i> 
+                                            <span style="margin-left: 10px;">Networking opportunities</span>
+                                        </li>
+                                        <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                                            <i class="fas fa-check text-success"></i> 
+                                            <span style="margin-left: 10px;">Free refreshments</span>
+                                        </li>
+                                        <li style="padding: 8px 0;">
+                                            <i class="fas fa-check text-success"></i> 
+                                            <span style="margin-left: 10px;">Digital resources</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Add event listeners for booking form
+                setupBookingForm();
+                
+            } catch (error) {
+                console.error('Failed to load event:', error);
+                showEventNotFound();
+            }
+        }
+
+        function showEventNotFound() {
+            document.getElementById('eventDetail').innerHTML = `
+                <div class="text-center" style="padding: 60px 20px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 4rem; color: #ffc107; margin-bottom: 20px;"></i>
+                    <h1>Event Not Found</h1>
+                    <p>The event you're looking for doesn't exist or may have been removed.</p>
+                    <a href="events.html" class="btn btn-primary">Browse All Events</a>
                 </div>
             `;
+        }
 
-            // Add event listeners for booking form
-            setupBookingForm();
+        function calculateDuration(startDate, endDate) {
+            if (!startDate || !endDate) return 'TBA';
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diffMs = end - start;
+            const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+            if (diffHours < 1) return 'Less than 1 hour';
+            if (diffHours === 1) return '1 hour';
+            if (diffHours < 24) return `${diffHours} hours`;
+            const diffDays = Math.round(diffHours / 24);
+            return diffDays === 1 ? '1 day' : `${diffDays} days`;
         }
 
         function setupBookingForm() {
             const bookingForm = document.getElementById('bookingForm');
-            if (!bookingForm) return;
+            if (!bookingForm || !currentEvent || !loggedInUser) return;
 
             const ticketsSelect = bookingForm.querySelector('select[name="tickets"]');
             const totalPriceElement = document.getElementById('totalPrice');
 
-            if (ticketsSelect && totalPriceElement) {
+            // Update total price when tickets change
+            if (ticketsSelect && totalPriceElement && !currentEvent.isFree) {
                 ticketsSelect.addEventListener('change', () => {
                     const tickets = parseInt(ticketsSelect.value) || 0;
-                    totalPriceElement.textContent = (currentEvent.price * tickets).toString();
+                    totalPriceElement.textContent = ((currentEvent.price || 0) * tickets).toString();
                 });
             }
 
-            bookingForm.addEventListener('submit', (e) => {
+            bookingForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                if (window.EventHub.validateForm('bookingForm')) {
-                    const tickets = parseInt(ticketsSelect.value);
-                    if (tickets > currentEvent.available) {
-                        window.EventHub.showAlert(`Sorry, only ${currentEvent.available} tickets available!`, 'danger');
-                        return;
-                    }
+                
+                const formData = new FormData(bookingForm);
+                const tickets = parseInt(formData.get('tickets'));
+                
+                if (!tickets) {
+                    showAlert('Please select the number of tickets.', 'warning');
+                    return;
+                }
+                
+                const availableSeats = currentEvent.capacity - (currentEvent.bookingCount || 0);
+                
+                if (tickets > availableSeats) {
+                    showAlert(`Sorry, only ${availableSeats} tickets available!`, 'danger');
+                    return;
+                }
+                
+                // Disable submit button to prevent double submission
+                const submitBtn = bookingForm.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                
+                try {
+                    const bookingData = {
+                        eventId: currentEvent.eventId,
+                        quantity: tickets,
+                        attendeeInfo: {
+                            name: formData.get('fullName') || `${loggedInUser.firstName} ${loggedInUser.lastName}`,
+                            email: formData.get('email') || loggedInUser.email,
+                            phone: formData.get('phone') || loggedInUser.phone || ''
+                        }
+                    };
+
+                    const result = await apiRequest('/bookings', {
+                        method: 'POST',
+                        body: JSON.stringify(bookingData),
+                        requireAuth: true
+                    });
+
+                    showAlert(`Successfully booked ${tickets} ticket(s)! Booking reference: ${result.bookingReference}`, 'success');
                     
-                    window.EventHub.showAlert(`Successfully booked ${tickets} ticket(s) for "${currentEvent.title}"!`, 'success');
-                    currentEvent.available -= tickets;
-                    
-                    // Refresh the booking form
-                    loadEventDetail();
+                    // Redirect to dashboard after successful booking
+                    setTimeout(() => {
+                        window.location.href = 'user-dashboard.html';
+                    }, 2000);
+                } catch (error) {
+                    console.error('Booking failed:', error);
+                    // Re-enable submit button on error
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-ticket-alt"></i> Book Now';
                 }
             });
         }
 
-        function loadRelatedEvents() {
+        async function loadRelatedEvents() {
             if (!currentEvent) return;
 
-            const relatedEvents = window.EventHub.sampleEvents
-                .filter(event => event.id !== currentEvent.id && event.category === currentEvent.category)
-                .slice(0, 3);
-
             const relatedEventsContainer = document.getElementById('relatedEvents');
-            if (relatedEvents.length > 0) {
-                relatedEventsContainer.innerHTML = relatedEvents.map(event => 
-                    window.EventHub.createEventCard(event, true)
-                ).join('');
-            } else {
+            if (!relatedEventsContainer) return;
+
+            try {
+                // Fetch all events and filter for related ones
+                const allEvents = await fetchEvents();
+                const relatedEvents = allEvents
+                    .filter(event => event.eventId !== currentEvent.eventId && 
+                            event.categoryName === currentEvent.categoryName)
+                    .slice(0, 3);
+
+                if (relatedEvents.length > 0) {
+                    relatedEventsContainer.innerHTML = relatedEvents.map(event => 
+                        createEventCard(event, true)
+                    ).join('');
+                } else {
+                    // Try to show any other events if no related events found
+                    const otherEvents = allEvents
+                        .filter(event => event.eventId !== currentEvent.eventId)
+                        .slice(0, 3);
+                    
+                    if (otherEvents.length > 0) {
+                        relatedEventsContainer.innerHTML = otherEvents.map(event => 
+                            createEventCard(event, true)
+                        ).join('');
+                    } else {
+                        relatedEventsContainer.innerHTML = `
+                            <div class="text-center" style="grid-column: 1 / -1;">
+                                <p>No related events found at the moment.</p>
+                                <a href="events.html" class="btn btn-primary">Browse All Events</a>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load related events:', error);
                 relatedEventsContainer.innerHTML = `
                     <div class="text-center" style="grid-column: 1 / -1;">
-                        <p>No related events found at the moment.</p>
+                        <p>Unable to load related events.</p>
                         <a href="events.html" class="btn btn-primary">Browse All Events</a>
                     </div>
                 `;
@@ -608,13 +773,13 @@
             const urlInput = document.getElementById('eventUrl');
             urlInput.select();
             navigator.clipboard.writeText(urlInput.value);
-            window.EventHub.showAlert('Event URL copied to clipboard!', 'success');
+            showAlert('Event URL copied to clipboard!', 'success');
         }
 
         function shareOn(platform) {
             const eventUrl = encodeURIComponent(window.location.href);
             const eventTitle = encodeURIComponent(currentEvent.title);
-            const eventDescription = encodeURIComponent(currentEvent.description.substring(0, 100) + '...');
+            const eventDescription = encodeURIComponent((currentEvent.shortDescription || currentEvent.description || '').substring(0, 100) + '...');
             
             let shareUrl = '';
             
@@ -641,17 +806,20 @@
         function shareViaEmail() {
             const email = document.getElementById('shareEmail').value;
             if (!email) {
-                window.EventHub.showAlert('Please enter an email address', 'warning');
+                showAlert('Please enter an email address', 'warning');
                 return;
             }
             
-            window.EventHub.showAlert('Event invitation sent via email!', 'success');
+            showAlert('Event invitation sent via email!', 'success');
             document.getElementById('shareEmail').value = '';
         }
 
         function addToCalendar(type) {
-            const startDate = new Date(currentEvent.date);
-            const endDate = new Date(startDate.getTime() + 6 * 60 * 60 * 1000); // Add 6 hours
+            if (!currentEvent) return;
+            
+            const startDate = new Date(currentEvent.startDate);
+            const endDate = currentEvent.endDate ? new Date(currentEvent.endDate) : new Date(startDate.getTime() + 6 * 60 * 60 * 1000); // Add 6 hours if no end date
+            const venue = currentEvent.isOnline ? 'Online Event' : (currentEvent.venueName || 'TBA');
             
             const formatDate = (date) => {
                 return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -659,12 +827,12 @@
             
             switch(type) {
                 case 'google':
-                    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(currentEvent.title)}&dates=${formatDate(startDate)}/${formatDate(endDate)}&details=${encodeURIComponent(currentEvent.description)}&location=${encodeURIComponent(currentEvent.venue)}`;
+                    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(currentEvent.title)}&dates=${formatDate(startDate)}/${formatDate(endDate)}&details=${encodeURIComponent(currentEvent.description || '')}&location=${encodeURIComponent(venue)}`;
                     window.open(googleUrl, '_blank');
                     break;
                     
                 case 'outlook':
-                    const outlookUrl = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(currentEvent.title)}&startdt=${startDate.toISOString()}&enddt=${endDate.toISOString()}&body=${encodeURIComponent(currentEvent.description)}&location=${encodeURIComponent(currentEvent.venue)}`;
+                    const outlookUrl = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(currentEvent.title)}&startdt=${startDate.toISOString()}&enddt=${endDate.toISOString()}&body=${encodeURIComponent(currentEvent.description || '')}&location=${encodeURIComponent(venue)}`;
                     window.open(outlookUrl, '_blank');
                     break;
                     
@@ -673,13 +841,13 @@
 VERSION:2.0
 PRODID:-//EventHub//EventHub//EN
 BEGIN:VEVENT
-UID:${currentEvent.id}@eventhub.com
+UID:${currentEvent.eventId}@eventhub.com
 DTSTAMP:${formatDate(new Date())}
 DTSTART:${formatDate(startDate)}
 DTEND:${formatDate(endDate)}
 SUMMARY:${currentEvent.title}
-DESCRIPTION:${currentEvent.description}
-LOCATION:${currentEvent.venue}
+DESCRIPTION:${(currentEvent.description || '').replace(/\n/g, '\\n')}
+LOCATION:${venue}
 END:VEVENT
 END:VCALENDAR`;
                     
@@ -693,10 +861,10 @@ END:VCALENDAR`;
                     break;
                     
                 default:
-                    window.EventHub.showAlert(`${type} calendar integration would open here`, 'info');
+                    showAlert(`${type} calendar integration would open here`, 'info');
             }
             
-            window.EventHub.closeModal('calendarModal');
+            closeModal('calendarModal');
         }
 
         function toggleFavorite() {
@@ -707,12 +875,12 @@ END:VCALENDAR`;
                 icon.classList.remove('far');
                 icon.classList.add('fas');
                 button.innerHTML = '<i class="fas fa-heart"></i> Saved';
-                window.EventHub.showAlert('Event saved to your favorites!', 'success');
+                showAlert('Event saved to your favorites!', 'success');
             } else {
                 icon.classList.remove('fas');
                 icon.classList.add('far');
                 button.innerHTML = '<i class="far fa-heart"></i> Save Event';
-                window.EventHub.showAlert('Event removed from favorites', 'info');
+                showAlert('Event removed from favorites', 'info');
             }
         }
     </script>

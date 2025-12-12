@@ -237,6 +237,7 @@
         </div>
     </footer>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
     <script>
         let currentEvents = [];
@@ -249,11 +250,49 @@
         // Initialize events page
         document.addEventListener('DOMContentLoaded', async () => {
             showLoading(true);
+            
+            // Update navigation based on auth status (don't wait for it)
+            updateNavigationAuth();
+            
             await loadAllEvents();
             await loadEventCategories();
             setupEventListeners();
             showLoading(false);
         });
+
+        // Update navigation to show logged-in user
+        function updateNavigationAuth() {
+            const navAuth = document.querySelector('.nav-auth');
+            const token = localStorage.getItem('authToken');
+            const storedUser = localStorage.getItem('currentUser');
+            
+            if (token && storedUser && navAuth) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    const userType = localStorage.getItem('userType');
+                    const dashboardUrl = userType === 'Admin' ? 'admin-dashboard.html' : 
+                                        userType === 'Organizer' ? 'organizer-dashboard.html' : 
+                                        'user-dashboard.html';
+                    
+                    navAuth.innerHTML = `
+                        <span style="color: white; margin-right: 10px;">Welcome, ${user.firstName || 'User'}!</span>
+                        <a href="${dashboardUrl}" class="btn btn-outline">Dashboard</a>
+                        <button onclick="handleLogout()" class="btn btn-primary">Logout</button>
+                    `;
+                } catch (e) {
+                    console.error('Error parsing stored user:', e);
+                }
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userType');
+            window.location.href = '../index.html';
+        }
 
         async function loadAllEvents() {
             try {

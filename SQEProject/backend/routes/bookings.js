@@ -316,4 +316,136 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// Get organizer's bookings/attendees
+router.get('/organizer/attendees', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { eventId, status } = req.query;
+
+        let query = `
+            SELECT 
+                b.BookingId as bookingId,
+                b.BookingReference as bookingReference,
+                b.Quantity as quantity,
+                b.UnitPrice as unitPrice,
+                b.FinalAmount as finalAmount,
+                b.Status as status,
+                b.PaymentStatus as paymentStatus,
+                b.AttendeeInfo as attendeeInfo,
+                b.CreatedAt as createdAt,
+                e.EventId as eventId,
+                e.Title as eventTitle,
+                u.FirstName as userFirstName,
+                u.LastName as userLastName,
+                u.Email as userEmail,
+                u.PhoneNumber as userPhone
+            FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+            LEFT JOIN [Users].[Users] u ON b.UserId = u.UserId
+            WHERE e.OrganizerId = (
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            )`;
+
+        const params = { userId };
+
+        if (eventId) {
+            query += ` AND b.EventId = @eventId`;
+            params.eventId = eventId;
+        }
+
+        if (status) {
+            query += ` AND b.Status = @status`;
+            params.status = status;
+        }
+
+        query += ` ORDER BY b.CreatedAt DESC`;
+
+        const result = await database.query(query, params);
+
+        const bookings = result.recordset.map(booking => ({
+            ...booking,
+            userName: `${booking.userFirstName || ''} ${booking.userLastName || ''}`.trim() || 'Guest',
+            attendeeInfo: booking.attendeeInfo ? JSON.parse(booking.attendeeInfo) : null
+        }));
+
+        res.json(bookings);
+    } catch (error) {
+        console.error('Failed to fetch organizer attendees:', error);
+        res.status(500).json({
+            error: 'Failed to fetch attendees'
+        });
+    }
+});
+
+// Get organizer analytics
+router.get('/organizer/analytics', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        const result = await database.query(`
+            SELECT 
+                COUNT(DISTINCT b.BookingId) as totalBookings,
+                ISNULL(SUM(b.Quantity), 0) as totalTicketsSold,
+                ISNULL(SUM(b.FinalAmount), 0) as totalRevenue,
+                ISNULL(SUM(b.PlatformFee), 0) as totalFees,
+                ISNULL(SUM(b.FinalAmount - b.PlatformFee), 0) as netRevenue,
+                COUNT(DISTINCT b.EventId) as eventsWithBookings,
+                COUNT(DISTINCT CASE WHEN b.Status = 'Confirmed' THEN b.BookingId END) as confirmedBookings,
+                COUNT(DISTINCT CASE WHEN b.Status = 'Cancelled' THEN b.BookingId END) as cancelledBookings,
+                ISNULL(AVG(b.FinalAmount), 0) as avgBookingValue
+            FROM [Events].[Events] e
+            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId
+            WHERE e.OrganizerId = (
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            )
+        `, { userId });
+
+        const stats = result.recordset[0];
+
+        // Get monthly revenue trend (last 6 months)
+        const trendResult = await database.query(`
+            SELECT 
+                FORMAT(b.CreatedAt, 'yyyy-MM') as month,
+                ISNULL(SUM(b.FinalAmount), 0) as revenue,
+                COUNT(b.BookingId) as bookings
+            FROM [Events].[Events] e
+            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId
+            WHERE e.OrganizerId = (
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            )
+            AND b.CreatedAt >= DATEADD(MONTH, -6, GETDATE())
+            GROUP BY FORMAT(b.CreatedAt, 'yyyy-MM')
+            ORDER BY month
+        `, { userId });
+
+        // Get category distribution
+        const categoryResult = await database.query(`
+            SELECT 
+                c.Name as category,
+                COUNT(DISTINCT e.EventId) as eventCount,
+                ISNULL(SUM(b.Quantity), 0) as ticketsSold,
+                ISNULL(SUM(b.FinalAmount), 0) as revenue
+            FROM [Events].[Events] e
+            LEFT JOIN [Events].[Categories] c ON e.CategoryId = c.CategoryId
+            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId
+            WHERE e.OrganizerId = (
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            )
+            GROUP BY c.Name
+            ORDER BY ticketsSold DESC
+        `, { userId });
+
+        res.json({
+            summary: stats,
+            monthlyTrend: trendResult.recordset,
+            categoryDistribution: categoryResult.recordset
+        });
+    } catch (error) {
+        console.error('Failed to fetch organizer analytics:', error);
+        res.status(500).json({
+            error: 'Failed to fetch analytics'
+        });
+    }
+});
+
 module.exports = router;
