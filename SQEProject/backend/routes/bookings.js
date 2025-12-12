@@ -338,7 +338,7 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
                 u.FirstName as userFirstName,
                 u.LastName as userLastName,
                 u.Email as userEmail,
-                u.PhoneNumber as userPhone
+                u.Phone as userPhone
             FROM [Events].[Bookings] b
             INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
             LEFT JOIN [Users].[Users] u ON b.UserId = u.UserId
