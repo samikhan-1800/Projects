@@ -26,11 +26,23 @@ const featuredEventsContainer = document.getElementById('featuredEvents');
 // Sidebar Toggle Logic
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebar = document.querySelector('.sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
 
 if (sidebarToggle && sidebar) {
     sidebarToggle.addEventListener('click', () => {
         sidebar.classList.toggle('active');
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.toggle('active');
+        }
     });
+
+    // Close sidebar when clicking overlay
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        });
+    }
 
     // Close sidebar when clicking outside on mobile
     document.addEventListener('click', (e) => {
@@ -39,6 +51,9 @@ if (sidebarToggle && sidebar) {
             !sidebar.contains(e.target) && 
             !sidebarToggle.contains(e.target)) {
             sidebar.classList.remove('active');
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.remove('active');
+            }
         }
     });
 }
