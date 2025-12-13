@@ -139,10 +139,17 @@ router.post('/login', async (req, res) => {
 
         const user = result.recordset[0];
 
+        // Check if user is banned
+        if (user.Status === 'Banned') {
+            return res.status(403).json({
+                error: 'Your account has been permanently banned. Please contact support for more information.'
+            });
+        }
+
         // Check if user is active
         if (user.Status !== 'Active') {
             return res.status(401).json({
-                error: 'Account is suspended or inactive'
+                error: 'Account is suspended or inactive. Please contact support.'
             });
         }
 

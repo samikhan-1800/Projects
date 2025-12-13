@@ -13,6 +13,7 @@ const eventRoutes = require('./routes/events');
 const bookingRoutes = require('./routes/bookings');
 const adminRoutes = require('./routes/admin');
 const userRoutes = require('./routes/users');
+const contactRoutes = require('./routes/contacts');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,6 +84,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/contacts', contactRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -92,26 +94,6 @@ app.get('/', (req, res) => {
         documentation: '/api/docs',
         health: '/health'
     });
-});
-
-// Contact form endpoint
-app.post('/api/contact', async (req, res) => {
-    try {
-        const { name, email, subject, message } = req.body;
-        
-        // Here you would typically save to database or send email
-        console.log('Contact form submission:', { name, email, subject, message });
-        
-        res.json({
-            message: 'Contact form submitted successfully',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Contact form error:', error);
-        res.status(500).json({
-            error: 'Failed to submit contact form'
-        });
-    }
 });
 
 // 404 handler

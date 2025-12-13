@@ -267,14 +267,14 @@ router.post('/', async (req, res) => {
             onlineMeetingUrl,
             capacity,
             price,
-            currency = 'USD',
+            currency = 'PKR',
             isFree,
             contactEmail,
             contactPhone,
             featuredImageUrl,
             tags,
             requirements,
-            status = 'Published'
+            status = 'Pending'
         } = req.body;
 
         // Validate required fields

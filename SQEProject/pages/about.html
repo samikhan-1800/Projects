@@ -4,31 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About Us - EventHub</title>
-    <link rel="stylesheet" href="../css/styles.css">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="../css/styles.css">
 </head>
-<body>
+<body class="page-transition">
     <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <i class="fas fa-calendar-alt"></i>
-                <a href="../index.html" class="brand-link">EventHub</a>
-            </div>
-            <div class="nav-menu" id="navMenu">
-                <a href="../index.html" class="nav-link">Home</a>
-                <a href="events.html" class="nav-link">Events</a>
-                <a href="about.html" class="nav-link active">About</a>
-                <a href="contact.html" class="nav-link">Contact</a>
-                <div class="nav-auth">
-                    <a href="login.html" class="btn btn-outline">Login</a>
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-calendar-alt me-2"></i>EventHub
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="../index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="events.html">Events</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="about.html">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="contact.html">Contact</a>
+                    </li>
+                </ul>
+                <div class="nav-auth ms-lg-4 d-flex gap-2">
+                    <a href="login.html" class="btn btn-outline-primary">Login</a>
                     <a href="register.html" class="btn btn-primary">Register</a>
                 </div>
-            </div>
-            <div class="nav-toggle" id="navToggle">
-                <span></span>
-                <span></span>
-                <span></span>
             </div>
         </div>
     </nav>
@@ -46,7 +59,7 @@
     <!-- About Content -->
     <section class="section-white">
         <div class="container">
-            <div class="content-center">
+            <div class="content-center" data-aos="fade-up">
                 <h2>Our Mission</h2>
                 <p class="lead">
                     At EventHub, we believe that great events create lasting memories and build stronger communities. 
@@ -55,7 +68,7 @@
                 </p>
             </div>
             <div class="events-grid" style="margin-top:60px;">
-                <div class="feature-card">
+                <div class="feature-card" data-aos="zoom-in" data-aos-delay="100">
                     <div class="feature-icon">
                         <i class="fas fa-users"></i>
                     </div>
@@ -63,7 +76,7 @@
                     <p>We put our community at the heart of everything we do, fostering connections and shared experiences.</p>
                 </div>
                 
-                <div class="feature-card">
+                <div class="feature-card" data-aos="zoom-in" data-aos-delay="200">
                     <div class="feature-icon">
                         <i class="fas fa-rocket"></i>
                     </div>
@@ -71,7 +84,7 @@
                     <p>We continuously innovate to provide the best tools and features for event management and discovery.</p>
                 </div>
                 
-                <div class="feature-card">
+                <div class="feature-card" data-aos="zoom-in" data-aos-delay="300">
                     <div class="feature-icon">
                         <i class="fas fa-shield-alt"></i>
                     </div>
@@ -85,7 +98,7 @@
     <!-- Team Section -->
     <section class="section-muted">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header" data-aos="fade-up">
                 <h2>Meet Our Team</h2>
                 <p>The passionate people behind EventHub</p>
             </div>
@@ -234,6 +247,13 @@
         </div>
     </footer>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- AOS Animation -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Page Transitions -->
+    <script src="../js/page-transitions.js"></script>
+    <!-- Custom Scripts -->
     <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
 </body>

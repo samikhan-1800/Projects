@@ -167,11 +167,20 @@ const DateHelper = {
 // NUMBER/CURRENCY FORMATTING
 // ============================================================================
 const NumberHelper = {
-    formatCurrency(amount, currency = 'USD') {
+    formatCurrency(amount, currency = 'PKR') {
+        const numericAmount = Number(amount);
+        const safeAmount = Number.isFinite(numericAmount) ? numericAmount : 0;
+
+        // App convention: display Pakistani Rupees as "Rs." to avoid "$" UI.
+        if (!currency || currency.toUpperCase() === 'PKR') {
+            return `Rs. ${safeAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        // Fallback for any other currency codes
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency
-        }).format(amount);
+        }).format(safeAmount);
     },
     
     formatNumber(num) {
@@ -397,16 +406,16 @@ const NavigationHelper = {
             const dashboardLink = this.getDashboardUrl(userType);
             
             navAuth.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <a href="${dashboardLink}" style="color: inherit; text-decoration: none;">
-                        <span style="cursor: pointer;">Welcome, ${userName}!</span>
+                <div class="d-flex align-items-center gap-3">
+                    <a href="${dashboardLink}" class="text-decoration-none text-dark fw-bold">
+                        Welcome, ${userName}!
                     </a>
-                    <button class="btn btn-outline btn-small" onclick="AuthHelper.logout()">Logout</button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="AuthHelper.logout()">Logout</button>
                 </div>
             `;
         } else {
             navAuth.innerHTML = `
-                <a href="${prefix}login.html" class="btn btn-outline">Login</a>
+                <a href="${prefix}login.html" class="btn btn-outline-primary me-2">Login</a>
                 <a href="${prefix}register.html" class="btn btn-primary">Register</a>
             `;
         }
@@ -679,7 +688,11 @@ const EventCardGenerator = {
         
         let cardFooter = `<a href="${detailUrl}" class="btn btn-outline btn-small">View Details</a>`;
         
-        if (showBookButton) {
+        // Check if user is admin - admins cannot book events
+        const userType = typeof localStorage !== 'undefined' ? localStorage.getItem('userType') : null;
+        const isAdmin = userType === 'Admin';
+        
+        if (showBookButton && !isAdmin) {
             if (availableSeats <= 0) {
                 cardFooter += `<button class="btn btn-primary btn-small" disabled>Sold Out</button>`;
             } else {

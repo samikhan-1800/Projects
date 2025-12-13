@@ -189,7 +189,7 @@ CREATE TABLE [Events].[Events] (
     -- Capacity and pricing
     [Capacity] INT,
     [Price] DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'USD',
+    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'PKR',
     [IsFree] BIT NOT NULL DEFAULT 0,
     [AllowWaitlist] BIT NOT NULL DEFAULT 1,
     [MaxTicketsPerUser] INT DEFAULT 10,
@@ -293,7 +293,7 @@ CREATE TABLE [Events].[Bookings] (
     [TaxAmount] DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     [DiscountAmount] DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     [FinalAmount] DECIMAL(10,2) NOT NULL,
-    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'USD',
+    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'PKR',
     
     -- Status
     [Status] NVARCHAR(50) NOT NULL DEFAULT 'Pending' CHECK ([Status] IN ('Pending', 'Confirmed', 'Cancelled', 'Refunded', 'CheckedIn', 'NoShow')),
@@ -401,7 +401,7 @@ CREATE TABLE [Payments].[Transactions] (
     [Type] NVARCHAR(50) NOT NULL CHECK ([Type] IN ('Payment', 'Refund', 'Payout', 'Fee', 'Commission')),
     [Status] NVARCHAR(50) NOT NULL DEFAULT 'Pending' CHECK ([Status] IN ('Pending', 'Processing', 'Completed', 'Failed', 'Cancelled', 'Disputed')),
     [Amount] DECIMAL(15,2) NOT NULL,
-    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'USD',
+    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'PKR',
     [PlatformFee] DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     [ProcessingFee] DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     [NetAmount] DECIMAL(15,2) NOT NULL,
@@ -672,7 +672,7 @@ INSERT INTO [System].[Settings] ([Category], [Key], [Value], [DataType], [Descri
 ('General', 'SiteUrl', 'https://eventhub.com', 'String', 'Base URL of the platform', 1),
 ('General', 'SupportEmail', 'support@eventhub.com', 'String', 'Support email address', 1),
 ('General', 'DefaultTimezone', 'UTC', 'String', 'Default timezone for events', 1),
-('General', 'DefaultCurrency', 'USD', 'String', 'Default currency for transactions', 1),
+('General', 'DefaultCurrency', 'PKR', 'String', 'Default currency for transactions', 1),
 ('General', 'MaxUploadSize', '10485760', 'Number', 'Maximum file upload size in bytes (10MB)', 0),
 ('General', 'AllowRegistrations', 'true', 'Boolean', 'Allow new user registrations', 0),
 ('General', 'RequireEmailVerification', 'true', 'Boolean', 'Require email verification for new users', 0),

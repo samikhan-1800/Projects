@@ -71,6 +71,15 @@ router.post('/', authenticateToken, async (req, res) => {
             });
         }
 
+        // Prevent admins from booking events - admins should manage, not book
+        const userRole = req.user.role || req.user.userType;
+        
+        if (userRole === 'Admin') {
+            return res.status(403).json({
+                error: 'Admins cannot book events. Admin accounts are for management purposes only.'
+            });
+        }
+
         // Prevent organizers from booking their own events
         const organizerCheck = await database.query(`
             SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId

@@ -174,7 +174,7 @@ CREATE TABLE [Events].[Events] (
     [Description] NVARCHAR(MAX),
     [ShortDescription] NVARCHAR(500),
     [Status] NVARCHAR(50) NOT NULL DEFAULT 'Draft' 
-        CHECK ([Status] IN ('Draft', 'Pending', 'Approved', 'Published', 'Cancelled', 'Completed')),
+        CHECK ([Status] IN ('Draft', 'Pending', 'Approved', 'Published', 'Cancelled', 'Completed', 'Rejected')),
     
     -- Date/Time fields
     [StartDate] DATETIME2 NOT NULL,
@@ -196,7 +196,7 @@ CREATE TABLE [Events].[Events] (
     -- Pricing and capacity
     [Capacity] INT,
     [Price] DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'USD',
+    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'PKR',
     [IsFree] BIT NOT NULL DEFAULT 0,
     [AllowWaitlist] BIT NOT NULL DEFAULT 1,
     [MaxTicketsPerUser] INT DEFAULT 10,
@@ -290,7 +290,7 @@ CREATE TABLE [Events].[Bookings] (
     [TaxAmount] DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     [DiscountAmount] DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     [FinalAmount] DECIMAL(10,2) NOT NULL,
-    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'USD',
+    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'PKR',
     
     -- Status
     [Status] NVARCHAR(50) NOT NULL DEFAULT 'Pending' 
@@ -375,7 +375,7 @@ CREATE TABLE [Payments].[Transactions] (
     [Status] NVARCHAR(50) NOT NULL DEFAULT 'Pending' 
         CHECK ([Status] IN ('Pending', 'Processing', 'Completed', 'Failed', 'Cancelled')),
     [Amount] DECIMAL(15,2) NOT NULL,
-    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'USD',
+    [Currency] NVARCHAR(3) NOT NULL DEFAULT 'PKR',
     [PlatformFee] DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     [NetAmount] DECIMAL(15,2) NOT NULL,
     
