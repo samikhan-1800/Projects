@@ -53,15 +53,6 @@
                 <li><a href="#reports" onclick="showSection('reports')">
                     <i class="fas fa-chart-bar"></i> Reports
                 </a></li>
-                <li><a href="#settings" onclick="showSection('settings')">
-                    <i class="fas fa-cogs"></i> System Settings
-                </a></li>
-                <li><a href="#content" onclick="showSection('content')">
-                    <i class="fas fa-edit"></i> Content Management
-                </a></li>
-                <li><a href="#support" onclick="showSection('support')">
-                    <i class="fas fa-life-ring"></i> Support Tickets
-                </a></li>
             </ul>
         </div>
 
@@ -86,33 +77,33 @@
                         <div class="stat-card-icon">
                             <i class="fas fa-users"></i>
                         </div>
-                        <div class="stat-card-value">15,847</div>
+                        <div class="stat-card-value" id="totalUsers">-</div>
                         <div class="stat-card-label">Total Users</div>
-                        <small class="text-success">+247 this month</small>
+                        <small class="text-success" id="usersGrowth">Loading...</small>
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
                             <i class="fas fa-calendar-alt"></i>
                         </div>
-                        <div class="stat-card-value">2,341</div>
+                        <div class="stat-card-value" id="totalEvents">-</div>
                         <div class="stat-card-label">Total Events</div>
-                        <small class="text-success">+89 this month</small>
+                        <small class="text-success" id="eventsGrowth">Loading...</small>
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
                             <i class="fas fa-dollar-sign"></i>
                         </div>
-                        <div class="stat-card-value">Rs. 147,520</div>
+                        <div class="stat-card-value" id="totalRevenue">-</div>
                         <div class="stat-card-label">Total Revenue</div>
-                        <small class="text-success">+12% this month</small>
+                        <small class="text-success" id="revenueGrowth">Loading...</small>
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
                             <i class="fas fa-ticket-alt"></i>
                         </div>
-                        <div class="stat-card-value">28,934</div>
+                        <div class="stat-card-value" id="totalBookings">-</div>
                         <div class="stat-card-label">Tickets Sold</div>
-                        <small class="text-success">+1,203 this month</small>
+                        <small class="text-success" id="bookingsGrowth">Loading...</small>
                     </div>
                 </div>
 
@@ -123,48 +114,8 @@
                         <div class="card-header">
                             <h3>Recent Activity</h3>
                         </div>
-                        <div class="card-body">
-                            <div style="display: flex; flex-direction: column; gap: 15px;">
-                                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                    <div style="width: 40px; height: 40px; background: #28a745; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
-                                        <i class="fas fa-user-plus"></i>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-weight: 500;">New user registered</p>
-                                        <small class="text-muted">john.doe@email.com - 2 minutes ago</small>
-                                    </div>
-                                </div>
-                                
-                                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                    <div style="width: 40px; height: 40px; background: #17a2b8; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
-                                        <i class="fas fa-calendar-plus"></i>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-weight: 500;">New event submitted</p>
-                                        <small class="text-muted">Digital Marketing Summit - 15 minutes ago</small>
-                                    </div>
-                                </div>
-                                
-                                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                    <div style="width: 40px; height: 40px; background: #ffc107; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
-                                        <i class="fas fa-exclamation-triangle"></i>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-weight: 500;">Support ticket created</p>
-                                        <small class="text-muted">Payment issue - 1 hour ago</small>
-                                    </div>
-                                </div>
-                                
-                                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                    <div style="width: 40px; height: 40px; background: #6f42c1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
-                                        <i class="fas fa-chart-line"></i>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-weight: 500;">Monthly report generated</p>
-                                        <small class="text-muted">October 2025 summary - 2 hours ago</small>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="card-body" id="recentActivities">
+                            <p class="text-center text-muted">Loading activities...</p>
                         </div>
                     </div>
 
@@ -173,7 +124,7 @@
                         <div class="card-header">
                             <h3>System Status</h3>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" id="systemStatus">
                             <div style="display: flex; flex-direction: column; gap: 15px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span>Server Status</span>
@@ -186,23 +137,23 @@
                                 </div>
                                 
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Payment Gateway</span>
-                                    <span class="badge badge-success">Active</span>
+                                    <span>Total Users</span>
+                                    <span class="badge badge-info" id="statusUsersCount">0</span>
                                 </div>
                                 
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Email Service</span>
-                                    <span class="badge badge-success">Running</span>
+                                    <span>Total Events</span>
+                                    <span class="badge badge-info" id="statusEventsCount">0</span>
                                 </div>
                                 
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Storage Usage</span>
-                                    <span class="badge badge-warning">76%</span>
+                                    <span>Pending Approvals</span>
+                                    <span class="badge badge-warning" id="statusPendingCount">0</span>
                                 </div>
                                 
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>CPU Usage</span>
-                                    <span class="badge badge-info">34%</span>
+                                    <span>Active Bookings</span>
+                                    <span class="badge badge-success" id="statusActiveBookings">0</span>
                                 </div>
                             </div>
                         </div>
@@ -222,42 +173,14 @@
                                     <th>Description</th>
                                     <th>Submitted By</th>
                                     <th>Date</th>
-                                    <th>Priority</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td><i class="fas fa-calendar-check text-primary"></i> Event Approval</td>
-                                    <td>Digital Marketing Summit 2025</td>
-                                    <td>TechEvents Inc.</td>
-                                    <td>Oct 25, 2025</td>
-                                    <td><span class="badge badge-warning">Medium</span></td>
-                                    <td>
-                                        <button class="btn btn-small btn-success" onclick="approveEvent(1)">Approve</button>
-                                        <button class="btn btn-small btn-danger" onclick="rejectEvent(1)">Reject</button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><i class="fas fa-user-check text-info"></i> Organizer Verification</td>
-                                    <td>Elite Events LLC</td>
-                                    <td>Sarah Johnson</td>
-                                    <td>Oct 24, 2025</td>
-                                    <td><span class="badge badge-danger">High</span></td>
-                                    <td>
-                                        <button class="btn btn-small btn-success" onclick="verifyOrganizer(2)">Verify</button>
-                                        <button class="btn btn-small btn-outline" onclick="requestInfo(2)">Request Info</button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><i class="fas fa-flag text-warning"></i> Report Review</td>
-                                    <td>Inappropriate event content</td>
-                                    <td>System User</td>
-                                    <td>Oct 23, 2025</td>
-                                    <td><span class="badge badge-warning">Medium</span></td>
-                                    <td>
-                                        <button class="btn btn-small btn-outline" onclick="reviewReport(3)">Review</button>
-                                        <button class="btn btn-small btn-danger" onclick="takeAction(3)">Take Action</button>
+                            <tbody id="pendingActionsTable">
+                                <tr class="loading-placeholder">
+                                    <td colspan="6" class="text-center">
+                                        <p>Loading pending actions...</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -421,33 +344,33 @@
                         <div class="stat-card-icon">
                             <i class="fas fa-chart-line"></i>
                         </div>
-                        <div class="stat-card-value">+23.4%</div>
+                        <div class="stat-card-value" id="growthRate">-</div>
                         <div class="stat-card-label">Growth Rate</div>
-                        <small class="text-success">vs previous month</small>
+                        <small class="text-success" id="growthRateLabel">vs previous month</small>
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
-                            <i class="fas fa-percentage"></i>
+                            <i class="fas fa-users"></i>
                         </div>
-                        <div class="stat-card-value">12.8%</div>
-                        <div class="stat-card-label">Platform Fee</div>
-                        <small class="text-info">Current commission</small>
+                        <div class="stat-card-value" id="activeUsers">-</div>
+                        <div class="stat-card-label">Active Users</div>
+                        <small class="text-info" id="activeUsersLabel">This month</small>
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
-                            <i class="fas fa-star"></i>
+                            <i class="fas fa-calendar"></i>
                         </div>
-                        <div class="stat-card-value">4.7</div>
-                        <div class="stat-card-label">Avg Rating</div>
-                        <small class="text-success">Platform satisfaction</small>
+                        <div class="stat-card-value" id="publishedEvents">-</div>
+                        <div class="stat-card-label">Published Events</div>
+                        <small class="text-success" id="publishedEventsLabel">Active events</small>
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
-                            <i class="fas fa-redo"></i>
+                            <i class="fas fa-ticket-alt"></i>
                         </div>
-                        <div class="stat-card-value">89.2%</div>
-                        <div class="stat-card-label">Retention Rate</div>
-                        <small class="text-success">User retention</small>
+                        <div class="stat-card-value" id="completedBookings">-</div>
+                        <div class="stat-card-label">Completed Bookings</div>
+                        <small class="text-success" id="completedBookingsLabel">Total paid</small>
                     </div>
                 </div>
 
@@ -468,30 +391,11 @@
                                     <th>Growth</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>October 2025</td>
-                                    <td>Rs. 147,520</td>
-                                    <td>Rs. 18,882</td>
-                                    <td>Rs. 128,638</td>
-                                    <td>Rs. 18,882</td>
-                                    <td><span class="text-success">+12.4%</span></td>
-                                </tr>
-                                <tr>
-                                    <td>September 2025</td>
-                                    <td>Rs. 131,280</td>
-                                    <td>Rs. 16,806</td>
-                                    <td>Rs. 114,474</td>
-                                    <td>Rs. 16,806</td>
-                                    <td><span class="text-success">+8.7%</span></td>
-                                </tr>
-                                <tr>
-                                    <td>August 2025</td>
-                                    <td>Rs. 120,890</td>
-                                    <td>Rs. 15,516</td>
-                                    <td>Rs. 105,374</td>
-                                    <td>Rs. 15,516</td>
-                                    <td><span class="text-success">+15.2%</span></td>
+                            <tbody id="revenueSummaryTable">
+                                <tr class="loading-placeholder">
+                                    <td colspan="6" class="text-center">
+                                        <p>Loading revenue data...</p>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -504,37 +408,8 @@
                         <div class="card-header">
                             <h3>Top Event Categories</h3>
                         </div>
-                        <div class="card-body">
-                            <div style="display: flex; flex-direction: column; gap: 15px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Technology</span>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 100px; height: 8px; background: #e9ecef; border-radius: 4px;">
-                                            <div style="width: 85%; height: 100%; background: #667eea; border-radius: 4px;"></div>
-                                        </div>
-                                        <span>85%</span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Music</span>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 100px; height: 8px; background: #e9ecef; border-radius: 4px;">
-                                            <div style="width: 72%; height: 100%; background: #28a745; border-radius: 4px;"></div>
-                                        </div>
-                                        <span>72%</span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Business</span>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 100px; height: 8px; background: #e9ecef; border-radius: 4px;">
-                                            <div style="width: 68%; height: 100%; background: #ffc107; border-radius: 4px;"></div>
-                                        </div>
-                                        <span>68%</span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Art</span>
+                        <div class="card-body" id="topCategoriesContainer">
+                            <p class="text-center text-muted">Loading category data...</p>
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <div style="width: 100px; height: 8px; background: #e9ecef; border-radius: 4px;">
                                             <div style="width: 45%; height: 100%; background: #17a2b8; border-radius: 4px;"></div>
@@ -550,32 +425,14 @@
                         <div class="card-header">
                             <h3>Top Organizers</h3>
                         </div>
-                        <div class="card-body">
-                            <div style="display: flex; flex-direction: column; gap: 15px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>TechEvents Inc.</span>
-                                    <span class="badge badge-primary">Rs. 45,200</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Summer Sounds</span>
-                                    <span class="badge badge-success">Rs. 38,900</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Modern Art Museum</span>
-                                    <span class="badge badge-info">Rs. 28,750</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>City Sports Authority</span>
-                                    <span class="badge badge-warning">Rs. 22,400</span>
-                                </div>
-                            </div>
+                        <div class="card-body" id="topOrganizersContainer">
+                            <p class="text-center text-muted">Loading organizer data...</p>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- System Settings Section -->
-            <div id="settings-section" class="dashboard-section">
+        </div>
+    </div>
                 <div class="dashboard-header">
                     <div>
                         <h1>System Settings</h1>
@@ -713,11 +570,8 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
 
-            <!-- Content Management Section -->
-            <div id="content-section" class="dashboard-section">
+
                 <div class="dashboard-header">
                     <div>
                         <h1>Content Management</h1>
@@ -760,11 +614,8 @@
                         <p>Manage uploaded images and files</p>
                         <button class="btn btn-primary">View Library</button>
                     </div>
-                </div>
-            </div>
 
-            <!-- Support Section -->
-            <div id="support-section" class="dashboard-section">
+
                 <div class="dashboard-header">
                     <div>
                         <h1>Support Tickets</h1>
@@ -837,155 +688,9 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
-    <script>
-        // Dashboard section management
-        function showSection(sectionName) {
-            // Hide all sections
-            document.querySelectorAll('.dashboard-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            
-            // Remove active class from all sidebar links
-            document.querySelectorAll('.sidebar-menu a').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            // Show selected section
-            document.getElementById(sectionName + '-section').classList.add('active');
-            
-            // Add active class to clicked link
-            event.target.classList.add('active');
-        }
-
-        // Event management functions
-        function approveEvent(eventId) {
-            showAlert(`Event ${eventId} approved successfully!`, 'success');
-        }
-
-        function rejectEvent(eventId) {
-            const reason = prompt('Please provide a reason for rejection:');
-            if (reason) {
-                showAlert(`Event ${eventId} rejected. Reason: ${reason}`, 'warning');
-            }
-        }
-
-        function suspendEvent(eventId) {
-            if (confirm('Are you sure you want to suspend this event?')) {
-                showAlert(`Event ${eventId} suspended successfully!`, 'warning');
-            }
-        }
-
-        function viewEvent(eventId) {
-            showAlert(`Viewing event ${eventId} details...`, 'info');
-        }
-
-        function generateReport(eventId) {
-            showAlert(`Generating report for event ${eventId}...`, 'info');
-        }
-
-        // User management functions
-        function viewUser(userId) {
-            showAlert(`Viewing user ${userId} profile...`, 'info');
-        }
-
-        function suspendUser(userId) {
-            if (confirm('Are you sure you want to suspend this user?')) {
-                showAlert(`User ${userId} suspended successfully!`, 'warning');
-            }
-        }
-
-        function promoteUser(userId) {
-            showAlert(`User ${userId} promoted to admin!`, 'success');
-        }
-
-        function editPermissions(userId) {
-            showAlert(`Opening permissions editor for user ${userId}...`, 'info');
-        }
-
-        // Approval workflow functions
-        function verifyOrganizer(id) {
-            showAlert(`Organizer ${id} verified successfully!`, 'success');
-        }
-
-        function requestInfo(id) {
-            showAlert(`Additional information requested from organizer ${id}`, 'info');
-        }
-
-        function reviewReport(id) {
-            showAlert(`Opening report ${id} for review...`, 'info');
-        }
-
-        function takeAction(id) {
-            showAlert(`Taking action on report ${id}...`, 'warning');
-        }
-
-        // Support functions
-        function respondToTicket(ticketId) {
-            showAlert(`Opening response form for ticket ${ticketId}...`, 'info');
-        }
-
-        function viewTicket(ticketId) {
-            showAlert(`Viewing ticket ${ticketId} details...`, 'info');
-        }
-
-        function resolveTicket(ticketId) {
-            showAlert(`Ticket ${ticketId} marked as resolved!`, 'success');
-        }
-
-        // Utility functions
-        function logout() {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('userType');
-            showAlert('Logged out successfully!', 'success');
-            setTimeout(() => {
-                window.location.href = '../index.html';
-            }, 1500);
-        }
-
-        // Initialize admin dashboard
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check if user is admin
-            const userType = localStorage.getItem('userType');
-            if (userType !== 'Admin') {
-                showAlert('Access denied. Admin privileges required.', 'danger');
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 1500);
-                return;
-            }
-            
-            // Update navigation with user name
-            const storedUser = localStorage.getItem('currentUser');
-            if (storedUser) {
-                try {
-                    const user = JSON.parse(storedUser);
-                    const navAuthSpan = document.querySelector('.nav-auth span');
-                    if (navAuthSpan) {
-                        navAuthSpan.textContent = `Welcome, ${user.firstName}!`;
-                    }
-                } catch (e) {
-                    console.error('Error parsing user data:', e);
-                }
-            }
-            
-            // Add event listeners for forms and filters
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
-                form.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    showAlert('Settings updated successfully!', 'success');
-                });
-            });
-        });
-    </script>
+    <script src="../js/admin-dashboard.js"></script>
 </body>
 </html>

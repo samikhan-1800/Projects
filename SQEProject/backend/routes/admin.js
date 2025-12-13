@@ -11,9 +11,9 @@ router.get('/dashboard/stats', authenticateToken, requireRole('Admin'), async (r
             -- Total users count
             SELECT 
                 (SELECT COUNT(*) FROM [Users].[Users]) as totalUsers,
-                (SELECT COUNT(*) FROM [Users].[Users] WHERE UserType = 'User') as regularUsers,
-                (SELECT COUNT(*) FROM [Users].[Users] WHERE UserType = 'Organizer') as organizers,
-                (SELECT COUNT(*) FROM [Users].[Users] WHERE UserType = 'Admin') as admins,
+                (SELECT COUNT(*) FROM [Users].[Users] WHERE Role = 'User') as regularUsers,
+                (SELECT COUNT(*) FROM [Users].[Users] WHERE Role = 'Organizer') as organizers,
+                (SELECT COUNT(*) FROM [Users].[Users] WHERE Role = 'Admin') as admins,
                 
                 -- Events statistics
                 (SELECT COUNT(*) FROM [Events].[Events]) as totalEvents,
@@ -28,7 +28,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole('Admin'), async (r
                 (SELECT COUNT(*) FROM [Events].[Bookings] WHERE PaymentStatus = 'Pending') as pendingPayments,
                 
                 -- Categories count
-                (SELECT COUNT(*) FROM [Categories].[Categories] WHERE IsActive = 1) as activeCategories
+                (SELECT COUNT(*) FROM [Events].[Categories] WHERE IsActive = 1) as activeCategories
         `);
 
         const monthlyStats = await database.query(`
@@ -93,13 +93,13 @@ router.get('/users', authenticateToken, requireRole('Admin'), async (req, res) =
         }
 
         if (userType) {
-            whereClause += ' AND u.UserType = @userType';
+            whereClause += ' AND u.Role = @userType';
             params.userType = userType;
         }
 
         if (status) {
-            whereClause += ' AND u.IsActive = @isActive';
-            params.isActive = status === 'active' ? 1 : 0;
+            whereClause += ' AND u.Status = @status';
+            params.status = status;
         }
 
         const result = await database.query(`
@@ -108,8 +108,8 @@ router.get('/users', authenticateToken, requireRole('Admin'), async (req, res) =
                 u.FirstName as firstName,
                 u.LastName as lastName,
                 u.Email as email,
-                u.UserType as userType,
-                u.IsActive as isActive,
+                u.Role as userType,
+                u.Status as status,
                 u.EmailVerified as emailVerified,
                 u.CreatedAt as createdAt,
                 u.LastLoginAt as lastLoginAt,
@@ -140,7 +140,6 @@ router.get('/users', authenticateToken, requireRole('Admin'), async (req, res) =
         res.json({
             users: result.recordset.map(user => ({
                 ...user,
-                isActive: Boolean(user.isActive),
                 emailVerified: Boolean(user.emailVerified)
             })),
             totalPages: Math.ceil(countResult.recordset[0].total / limit),
@@ -159,13 +158,16 @@ router.get('/users', authenticateToken, requireRole('Admin'), async (req, res) =
 router.patch('/users/:id/status', authenticateToken, requireRole('Admin'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { isActive } = req.body;
+        const { isActive, status } = req.body;
+
+        // Map isActive boolean to Status string, or use status directly
+        const newStatus = status || (isActive ? 'Active' : 'Inactive');
 
         await database.query(`
             UPDATE [Users].[Users]
-            SET IsActive = @isActive, ModifiedAt = GETUTCDATE()
+            SET Status = @status, UpdatedAt = GETUTCDATE()
             WHERE UserId = @userId
-        `, { userId: id, isActive });
+        `, { userId: id, status: newStatus });
 
         res.json({
             message: 'User status updated successfully'
@@ -268,7 +270,7 @@ router.patch('/events/:id/status', authenticateToken, requireRole('Admin'), asyn
 
         await database.query(`
             UPDATE [Events].[Events]
-            SET Status = @status, ModifiedAt = GETUTCDATE()
+            SET Status = @status, UpdatedAt = GETUTCDATE()
             WHERE EventId = @eventId
         `, { eventId: id, status });
 
@@ -291,13 +293,13 @@ router.get('/categories', authenticateToken, requireRole('Admin'), async (req, r
                 c.CategoryId as categoryId,
                 c.Name as name,
                 c.Description as description,
-                c.IconUrl as iconUrl,
+                c.IconClass as iconClass,
                 c.IsActive as isActive,
                 c.CreatedAt as createdAt,
                 COUNT(e.EventId) as eventCount
-            FROM [Categories].[Categories] c
+            FROM [Events].[Categories] c
             LEFT JOIN [Events].[Events] e ON c.CategoryId = e.CategoryId
-            GROUP BY c.CategoryId, c.Name, c.Description, c.IconUrl, c.IsActive, c.CreatedAt
+            GROUP BY c.CategoryId, c.Name, c.Description, c.IconClass, c.IsActive, c.CreatedAt
             ORDER BY c.Name
         `);
 
@@ -328,10 +330,10 @@ router.post('/categories', authenticateToken, requireRole('Admin'), async (req, 
         }
 
         const result = await database.query(`
-            INSERT INTO [Categories].[Categories] (CategoryId, Name, Description, IconUrl, IsActive)
+            INSERT INTO [Events].[Categories] (CategoryId, Name, Description, IconClass, IsActive)
             OUTPUT INSERTED.CategoryId, INSERTED.Name, INSERTED.CreatedAt
-            VALUES (NEWID(), @name, @description, @iconUrl, 1)
-        `, { name, description: description || null, iconUrl: iconUrl || null });
+            VALUES (NEWID(), @name, @description, @iconClass, 1)
+        `, { name, description: description || null, iconClass: iconUrl || null });
 
         res.status(201).json({
             message: 'Category created successfully',
@@ -352,19 +354,18 @@ router.patch('/categories/:id', authenticateToken, requireRole('Admin'), async (
         const { name, description, iconUrl, isActive } = req.body;
 
         await database.query(`
-            UPDATE [Categories].[Categories]
+            UPDATE [Events].[Categories]
             SET 
                 Name = COALESCE(@name, Name),
                 Description = COALESCE(@description, Description),
-                IconUrl = COALESCE(@iconUrl, IconUrl),
-                IsActive = COALESCE(@isActive, IsActive),
-                ModifiedAt = GETUTCDATE()
+                IconClass = COALESCE(@iconClass, IconClass),
+                IsActive = COALESCE(@isActive, IsActive)
             WHERE CategoryId = @categoryId
         `, { 
             categoryId: id, 
             name: name || null, 
             description: description || null, 
-            iconUrl: iconUrl || null,
+            iconClass: iconUrl || null,
             isActive: isActive !== undefined ? isActive : null
         });
 
