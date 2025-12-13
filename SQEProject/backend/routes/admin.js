@@ -448,4 +448,61 @@ router.get('/bookings', authenticateToken, requireRole('Admin'), async (req, res
     }
 });
 
+// Get top categories by event count
+router.get('/reports/top-categories', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await database.query(`
+            SELECT TOP 5
+                c.CategoryId as categoryId,
+                c.Name as name,
+                c.IconClass as iconClass,
+                COUNT(e.EventId) as eventCount,
+                ISNULL(SUM(b.TotalPrice), 0) as totalRevenue
+            FROM [Events].[Categories] c
+            LEFT JOIN [Events].[Events] e ON c.CategoryId = e.CategoryId
+            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId AND b.PaymentStatus = 'Completed'
+            WHERE c.IsActive = 1
+            GROUP BY c.CategoryId, c.Name, c.IconClass
+            HAVING COUNT(e.EventId) > 0
+            ORDER BY eventCount DESC, totalRevenue DESC
+        `);
+
+        res.json(result.recordset);
+    } catch (error) {
+        console.error('Failed to fetch top categories:', error);
+        res.status(500).json({
+            error: 'Failed to fetch top categories'
+        });
+    }
+});
+
+// Get top organizers by event count and revenue
+router.get('/reports/top-organizers', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await database.query(`
+            SELECT TOP 5
+                u.UserId as userId,
+                u.FirstName + ' ' + u.LastName as name,
+                u.Email as email,
+                COUNT(DISTINCT e.EventId) as eventCount,
+                ISNULL(SUM(b.TotalPrice), 0) as totalRevenue,
+                COUNT(DISTINCT b.BookingId) as totalBookings
+            FROM [Users].[Users] u
+            INNER JOIN [Events].[Events] e ON u.UserId = e.OrganizerId
+            LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId AND b.PaymentStatus = 'Completed'
+            WHERE u.Role = 'Organizer' AND u.Status = 'Active'
+            GROUP BY u.UserId, u.FirstName, u.LastName, u.Email
+            HAVING COUNT(DISTINCT e.EventId) > 0
+            ORDER BY totalRevenue DESC, eventCount DESC
+        `);
+
+        res.json(result.recordset);
+    } catch (error) {
+        console.error('Failed to fetch top organizers:', error);
+        res.status(500).json({
+            error: 'Failed to fetch top organizers'
+        });
+    }
+});
+
 module.exports = router;

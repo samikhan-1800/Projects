@@ -363,18 +363,19 @@ function showSection(sectionName) {
     });
     
     // Remove active class from all sidebar links
-    document.querySelectorAll('.sidebar-link').forEach(link => {
+    document.querySelectorAll('.sidebar-menu a').forEach(link => {
         link.classList.remove('active');
     });
     
-    // Show selected section
-    const section = document.getElementById(sectionName);
+    // Show selected section - add '-section' suffix to match HTML IDs
+    const sectionId = sectionName + '-section';
+    const section = document.getElementById(sectionId);
     if (section) {
         section.classList.add('active');
     }
     
     // Add active class to clicked link
-    const activeLink = document.querySelector(`[data-section="${sectionName}"]`);
+    const activeLink = document.querySelector(`.sidebar-menu a[onclick*="showSection('${sectionName}')"]`);
     if (activeLink) {
         activeLink.classList.add('active');
     }
@@ -383,7 +384,7 @@ function showSection(sectionName) {
     
     // Load section-specific data
     switch(sectionName) {
-        case 'overview':
+        case 'dashboard':
             loadDashboardOverview();
             break;
         case 'users':
@@ -392,11 +393,8 @@ function showSection(sectionName) {
         case 'events':
             loadEventsSection();
             break;
-        case 'analytics':
-            loadAnalyticsCharts();
-            break;
-        case 'support':
-            loadTicketsSection();
+        case 'reports':
+            loadReportsSection();
             break;
     }
 }
@@ -445,6 +443,17 @@ async function loadUsersSection() {
 // Load events section
 async function loadEventsSection() {
     await fetchEvents(1);
+}
+
+// Load reports section
+async function loadReportsSection() {
+    // Stats are already loaded from dashboard overview
+    // Just ensure they're fresh
+    await fetchDashboardStats();
+    
+    // Load top categories and organizers
+    await loadTopCategories();
+    await loadTopOrganizers();
 }
 
 // Load tickets section
@@ -525,6 +534,79 @@ async function loadTicketsSection() {
     } catch (error) {
         console.error('Failed to load tickets:', error);
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">Failed to load tickets</td></tr>';
+    }
+}
+
+// Load top categories for reports section
+async function loadTopCategories() {
+    try {
+        const data = await apiRequest('/admin/reports/top-categories');
+        const container = document.getElementById('topCategoriesContainer');
+        
+        if (!container) return;
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted">No category data available</p>';
+            return;
+        }
+
+        // Calculate max for percentage bars
+        const maxCount = Math.max(...data.map(c => c.eventCount));
+        
+        container.innerHTML = data.map(category => `
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span><i class="${category.iconClass || 'fas fa-tag'}"></i> ${category.name}</span>
+                    <span class="text-muted">${category.eventCount} events</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 100%; height: 8px; background: #e9ecef; border-radius: 4px;">
+                        <div style="width: ${(category.eventCount / maxCount) * 100}%; height: 100%; background: #17a2b8; border-radius: 4px;"></div>
+                    </div>
+                    <span style="min-width: 60px; text-align: right;">Rs. ${category.totalRevenue.toLocaleString()}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load top categories:', error);
+        const container = document.getElementById('topCategoriesContainer');
+        if (container) {
+            container.innerHTML = '<p class="text-center text-danger">Failed to load category data</p>';
+        }
+    }
+}
+
+// Load top organizers for reports section
+async function loadTopOrganizers() {
+    try {
+        const data = await apiRequest('/admin/reports/top-organizers');
+        const container = document.getElementById('topOrganizersContainer');
+        
+        if (!container) return;
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted">No organizer data available</p>';
+            return;
+        }
+
+        container.innerHTML = data.map((organizer, index) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                    <div style="font-weight: 500;">#${index + 1} ${organizer.name}</div>
+                    <small class="text-muted">${organizer.eventCount} events · ${organizer.totalBookings} bookings</small>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 600; color: #28a745;">Rs. ${organizer.totalRevenue.toLocaleString()}</div>
+                    <small class="text-muted">Total Revenue</small>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load top organizers:', error);
+        const container = document.getElementById('topOrganizersContainer');
+        if (container) {
+            container.innerHTML = '<p class="text-center text-danger">Failed to load organizer data</p>';
+        }
     }
 }
 
