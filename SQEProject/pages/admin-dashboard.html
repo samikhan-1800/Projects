@@ -66,8 +66,8 @@
                         <p>Welcome to the EventHub administration panel</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-outline">Backup System</button>
-                        <button class="btn btn-primary">System Health</button>
+                        <button class="btn btn-primary" onclick="checkSystemHealth()"><i class="fas fa-heartbeat"></i> System Health</button>
+                        <button class="btn btn-outline" onclick="refreshDashboard()"><i class="fas fa-sync"></i> Refresh</button>
                     </div>
                 </div>
 
@@ -197,8 +197,9 @@
                         <p>Manage registered users and organizers</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-outline">Export Users</button>
-                        <button class="btn btn-primary">Send Broadcast</button>
+                        <button class="btn btn-primary" onclick="exportUsersToPDF()">
+                            <i class="fas fa-file-pdf"></i> Export Users PDF
+                        </button>
                     </div>
                 </div>
 
@@ -261,8 +262,8 @@
                         <p>Review and manage all events on the platform</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-outline">Export Events</button>
-                        <button class="btn btn-primary">Bulk Actions</button>
+                        <button class="btn btn-outline" onclick="exportEvents()"><i class="fas fa-file-export"></i> Export Events</button>
+                        <button class="btn btn-primary" onclick="showBulkActionsModal()"><i class="fas fa-tasks"></i> Bulk Actions</button>
                     </div>
                 </div>
 
@@ -328,13 +329,15 @@
                         <p>View comprehensive platform analytics and reports</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <select class="form-control" style="width: auto;">
-                            <option>Last 30 days</option>
-                            <option>Last 90 days</option>
-                            <option>Last year</option>
-                            <option>All time</option>
+                        <select class="form-control" style="width: auto;" id="reportTimeRange">
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="365">Last year</option>
+                            <option value="all">All time</option>
                         </select>
-                        <button class="btn btn-outline">Export Report</button>
+                        <button class="btn btn-outline" onclick="exportReportToHTML()">
+                            <i class="fas fa-download"></i> Export Report
+                        </button>
                     </div>
                 </div>
 

@@ -319,7 +319,14 @@ function renderOrganizerEvents() {
                     <div class="event-price">${event.isFree ? 'FREE' : `Rs. ${event.price}`}</div>
                     <div class="card-footer" style="margin-top: 15px;">
                         <span class="badge badge-${status.class}">${status.text}</span>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${status.text === 'Pending Approval' ? 
+                            '<small style="display: block; margin-top: 8px; color: #f59e0b;"><i class="fas fa-info-circle"></i> Waiting for admin approval to go live</small>' : 
+                            status.text === 'Rejected' ? 
+                            '<small style="display: block; margin-top: 8px; color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Event was rejected by admin</small>' : 
+                            status.text === 'Published' || status.text === 'Active' ? 
+                            '<small style="display: block; margin-top: 8px; color: #10b981;"><i class="fas fa-check-circle"></i> Live and visible to users</small>' : ''
+                        }
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
                             <button class="btn btn-small btn-outline" onclick="editEvent('${event.eventId}')">Edit</button>
                             <button class="btn btn-small btn-outline" onclick="duplicateEvent('${event.eventId}')">Duplicate</button>
                             <button class="btn btn-small btn-danger" onclick="deleteEvent('${event.eventId}')">Delete</button>
@@ -341,8 +348,26 @@ function getEventStatus(event) {
         return { text: 'Cancelled', class: 'danger' };
     }
     
+    if (event.status === 'rejected' || event.status === 'Rejected') {
+        return { text: 'Rejected', class: 'danger' };
+    }
+    
     if (event.status === 'draft' || event.status === 'Draft') {
         return { text: 'Draft', class: 'secondary' };
+    }
+    
+    if (event.status === 'pending' || event.status === 'Pending') {
+        return { text: 'Pending Approval', class: 'warning' };
+    }
+    
+    if (event.status === 'published' || event.status === 'Published') {
+        if (endDate < now) {
+            return { text: 'Completed', class: 'secondary' };
+        }
+        if (startDate <= now && endDate >= now) {
+            return { text: 'Ongoing', class: 'info' };
+        }
+        return { text: 'Published', class: 'success' };
     }
     
     if (endDate < now) {
@@ -403,7 +428,7 @@ async function createEvent(formData) {
             requirements: formData.get('requirements') || null,
             contactEmail: formData.get('contactEmail') || null,
             contactPhone: formData.get('contactPhone') || null,
-            status: formData.get('isPublic') === 'on' ? 'Published' : 'Draft',
+            status: formData.get('isPublic') === 'on' ? 'Pending' : 'Draft',
             isFeatured: false,
             featuredImageUrl: featuredImageUrl
         };
@@ -413,7 +438,10 @@ async function createEvent(formData) {
             body: JSON.stringify(eventData)
         });
 
-        showAlert('Event created successfully! Your event is now live.', 'success');
+        const statusMsg = formData.get('isPublic') === 'on' 
+            ? 'Event created successfully! Waiting for admin approval before it goes live.' 
+            : 'Event saved as draft successfully!';
+        showAlert(statusMsg, 'success');
         await loadOrganizerEvents();
         
         setTimeout(() => {
@@ -522,7 +550,7 @@ async function updateEvent(eventId, formData) {
             description: formData.get('description'),
             shortDescription: formData.get('description')?.substring(0, 150) + '...',
             tags: formData.get('tags')?.split(',').map(t => t.trim()).filter(t => t) || [],
-            status: formData.get('isPublic') === 'on' ? 'Published' : 'Draft',
+            status: formData.get('isPublic') === 'on' ? 'Pending' : 'Draft',
             featuredImageUrl: featuredImageUrl
         };
 

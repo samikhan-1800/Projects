@@ -174,7 +174,7 @@ CREATE TABLE [Events].[Events] (
     [Description] NVARCHAR(MAX),
     [ShortDescription] NVARCHAR(500),
     [Status] NVARCHAR(50) NOT NULL DEFAULT 'Draft' 
-        CHECK ([Status] IN ('Draft', 'Pending', 'Approved', 'Published', 'Cancelled', 'Completed')),
+        CHECK ([Status] IN ('Draft', 'Pending', 'Approved', 'Published', 'Cancelled', 'Completed', 'Rejected')),
     
     -- Date/Time fields
     [StartDate] DATETIME2 NOT NULL,

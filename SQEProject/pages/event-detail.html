@@ -372,6 +372,19 @@
         // Generate booking form HTML based on login status
         function generateBookingFormHTML(availableSeats) {
             const isLoggedIn = !!loggedInUser;
+            
+            // Check if user is admin - admins cannot book events
+            if (isLoggedIn && loggedInUser.userType === 'Admin') {
+                return `
+                    <div class="text-center" style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;">
+                        <i class="fas fa-user-shield" style="font-size: 3rem; color: #ff9800; margin-bottom: 15px;"></i>
+                        <h4>Admin Account</h4>
+                        <p style="color: #856404; margin-bottom: 10px;">Admin accounts cannot book events.</p>
+                        <p style="color: #856404; font-size: 0.9rem;">You can manage events in the <a href="admin-dashboard.html" style="color: #ff9800; font-weight: bold;">Admin Dashboard</a>.</p>
+                    </div>
+                `;
+            }
+            
             const userFullName = isLoggedIn ? `${loggedInUser.firstName || ''} ${loggedInUser.lastName || ''}`.trim() : '';
             const userEmail = isLoggedIn ? loggedInUser.email || '' : '';
             const userPhone = isLoggedIn ? loggedInUser.phone || '' : '';

@@ -274,7 +274,7 @@ router.post('/', async (req, res) => {
             featuredImageUrl,
             tags,
             requirements,
-            status = 'Published'
+            status = 'Pending'
         } = req.body;
 
         // Validate required fields

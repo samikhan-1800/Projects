@@ -172,33 +172,63 @@ function renderUsersTable(users) {
         return;
     }
 
-    tbody.innerHTML = users.map(user => `
-        <tr>
+    tbody.innerHTML = users.map(user => {
+        // Determine proper status badge
+        const statusBadge = getStatusBadgeForUser(user.status);
+        
+        // Show verification status for organizers
+        let verificationBadge = '';
+        if (user.emailVerified) {
+            verificationBadge = '<i class="fas fa-check-circle text-success"></i> Verified';
+        } else {
+            verificationBadge = '<i class="fas fa-exclamation-circle text-warning"></i> Unverified';
+        }
+        
+        // Add organizer verification status if applicable
+        if (user.userType === 'Organizer' && user.verificationStatus) {
+            if (user.verificationStatus === 'Verified') {
+                verificationBadge += ' <span class="badge badge-success" style="font-size: 0.7em; margin-left: 5px;"><i class="fas fa-badge-check"></i> Org Verified</span>';
+            } else if (user.verificationStatus === 'Pending') {
+                verificationBadge += ' <span class="badge badge-warning" style="font-size: 0.7em; margin-left: 5px;"><i class="fas fa-clock"></i> Pending</span>';
+            }
+        }
+
+        return `
+        <tr ${user.status === 'Banned' ? 'style="background-color: #ffe6e6;"' : ''}>
             <td>
                 <div>
                     <strong>${user.firstName} ${user.lastName}</strong>
-                    <small class="text-muted d-block">${user.email}</small>
+                    ${user.status === 'Banned' ? '<span class="badge badge-danger" style="font-size: 0.7em; margin-left: 5px;"><i class="fas fa-ban"></i> BANNED</span>' : ''}
+                    <small class="text-muted d-block">${verificationBadge}</small>
                 </div>
             </td>
+            <td>${user.email}</td>
             <td><span class="badge badge-${getRoleBadgeClass(user.userType)}">${user.userType}</span></td>
-            <td><span class="badge badge-${user.isActive ? 'success' : 'warning'}">${user.isActive ? 'Active' : 'Inactive'}</span></td>
-            <td>${user.emailVerified ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-times-circle text-danger"></i>'}</td>
             <td>${formatDate(user.createdAt)}</td>
             <td>${user.eventsCreated || 0}</td>
-            <td>${user.bookingsMade || 0}</td>
+            <td><span class="badge badge-${statusBadge.class}">${statusBadge.text}</span></td>
             <td>
-                <button class="btn btn-small btn-outline" onclick="viewUser('${user.userId}')">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${user.userType !== 'Admin' ? `
-                    <button class="btn btn-small btn-${user.isActive ? 'warning' : 'success'}" 
-                            onclick="toggleUserStatus('${user.userId}', ${!user.isActive})">
-                        ${user.isActive ? '<i class="fas fa-ban"></i>' : '<i class="fas fa-check"></i>'}
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-small btn-outline" onclick="viewUser('${user.userId}')" title="View Details">
+                        <i class="fas fa-eye"></i>
                     </button>
-                ` : ''}
+                    ${user.userType !== 'Admin' && user.status !== 'Banned' ? `
+                        <button class="btn btn-small btn-${user.status === 'Active' ? 'warning' : 'success'}" 
+                                onclick="toggleUserStatus('${user.userId}', '${user.status === 'Active' ? 'Inactive' : 'Active'}')" 
+                                title="${user.status === 'Active' ? 'Suspend User' : 'Activate User'}">
+                            ${user.status === 'Active' ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-check"></i>'}
+                        </button>
+                        <button class="btn btn-small btn-danger" 
+                                onclick="banUser('${user.userId}', '${user.firstName} ${user.lastName}')" 
+                                title="Ban User Permanently">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    ` : ''}
+                </div>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function renderEventsTable(events) {
@@ -210,8 +240,14 @@ function renderEventsTable(events) {
         return;
     }
 
-    tbody.innerHTML = events.map(event => `
-        <tr>
+    tbody.innerHTML = events.map(event => {
+        // Highlight pending events
+        const isPending = event.status === 'Pending';
+        const isRejected = event.status === 'Rejected';
+        const rowStyle = isPending ? 'background-color: #fff8e1;' : (isRejected ? 'background-color: #ffebee;' : '');
+        
+        return `
+        <tr ${rowStyle ? `style="${rowStyle}"` : ''}>
             <td>
                 <div>
                     <strong>${event.title}</strong>
@@ -220,29 +256,44 @@ function renderEventsTable(events) {
             </td>
             <td>${event.organizerName || 'Unknown'}</td>
             <td>${formatDate(event.startDate)}</td>
-            <td>${event.venueName || (event.isOnline ? 'Online' : 'TBA')}</td>
-            <td>${event.capacity || 'Unlimited'}</td>
-            <td>${event.bookingCount || 0}</td>
+            <td>${event.categoryName || 'N/A'}</td>
+            <td>${event.bookingCount || 0} / ${event.capacity || '∞'}</td>
             <td>Rs. ${(event.totalRevenue || 0).toLocaleString()}</td>
             <td><span class="badge badge-${getStatusBadgeClass(event.status)}">${event.status}</span></td>
             <td>
-                <button class="btn btn-small btn-outline" onclick="viewEvent('${event.eventId}')">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${event.status === 'Pending' || event.status === 'Draft' ? `
-                    <button class="btn btn-small btn-success" onclick="approveEvent('${event.eventId}')">
-                        <i class="fas fa-check"></i>
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-small btn-outline" onclick="viewEvent('${event.eventId}')" title="View Details">
+                        <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-small btn-danger" onclick="rejectEvent('${event.eventId}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                ` : ''}
+                    ${isPending ? `
+                        <button class="btn btn-small btn-success" onclick="approveEvent('${event.eventId}')" title="Approve & Publish">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn btn-small btn-danger" onclick="rejectEvent('${event.eventId}')" title="Reject Event">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    ` : event.status === 'Published' ? `
+                        <button class="btn btn-small btn-warning" onclick="changeEventStatus('${event.eventId}', 'Cancelled')" title="Cancel Event">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    ` : ''}
+                </div>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 }
 
 // Helper functions
+function getStatusBadgeForUser(status) {
+    const statusMap = {
+        'Active': { class: 'success', text: 'ACTIVE' },
+        'Inactive': { class: 'secondary', text: 'INACTIVE' },
+        'Suspended': { class: 'warning', text: 'SUSPENDED' },
+        'Banned': { class: 'danger', text: 'BANNED' }
+    };
+    return statusMap[status] || { class: 'secondary', text: status || 'UNKNOWN' };
+}
+
 function getRoleBadgeClass(role) {
     const classes = {
         'Admin': 'danger',
@@ -712,11 +763,15 @@ function loadAnalyticsCharts() {
 
 // Event management functions
 async function approveEvent(eventId) {
+    if (!confirm('Approve this event? It will be published and visible to all users.')) {
+        return;
+    }
+    
     try {
         await apiRequest(`/admin/events/${eventId}/approve`, {
-            method: 'PUT'
+            method: 'PATCH'
         });
-        showAlert('Event approved successfully!', 'success');
+        showAlert('Event approved and published successfully!', 'success');
         await loadEventsSection(); // Refresh table
     } catch (error) {
         console.error('Failed to approve event:', error);
@@ -726,18 +781,39 @@ async function approveEvent(eventId) {
 
 async function rejectEvent(eventId) {
     const reason = prompt('Please provide a reason for rejection:');
-    if (reason) {
-        try {
-            await apiRequest(`/admin/events/${eventId}/reject`, {
-                method: 'PUT',
-                body: JSON.stringify({ reason })
-            });
-            showAlert('Event rejected successfully', 'warning');
-            await loadEventsSection(); // Refresh table
-        } catch (error) {
-            console.error('Failed to reject event:', error);
-            showAlert('Failed to reject event', 'danger');
-        }
+    if (!reason) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/events/${eventId}/reject`, {
+            method: 'PATCH',
+            body: JSON.stringify({ reason })
+        });
+        showAlert(`Event rejected: ${reason}`, 'warning');
+        await loadEventsSection(); // Refresh table
+    } catch (error) {
+        console.error('Failed to reject event:', error);
+        showAlert('Failed to reject event', 'danger');
+    }
+}
+
+async function changeEventStatus(eventId, status) {
+    const confirmMsg = status === 'Cancelled' ? 'Cancel this event? Users will be notified.' : `Change status to ${status}?`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/events/${eventId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status })
+        });
+        showAlert(`Event status changed to ${status}`, 'success');
+        await loadEventsSection(); // Refresh table
+    } catch (error) {
+        console.error('Failed to change event status:', error);
+        showAlert('Failed to change event status', 'danger');
     }
 }
 
@@ -761,39 +837,98 @@ function viewEvent(eventId) {
 }
 
 // User management functions
-function viewUser(userId) {
-    // Open user details in modal or new page
-    showAlert('User details functionality to be implemented', 'info');
-}
-
-async function suspendUser(userId) {
-    if (confirm('Are you sure you want to suspend this user?')) {
-        try {
-            await apiRequest(`/admin/users/${userId}/suspend`, {
-                method: 'PUT'
-            });
-            showAlert('User suspended successfully', 'warning');
-            await loadUsersSection(); // Refresh table
-        } catch (error) {
-            console.error('Failed to suspend user:', error);
-            showAlert('Failed to suspend user', 'danger');
+async function viewUser(userId) {
+    try {
+        const user = allUsers.find(u => u.userId === userId);
+        if (!user) {
+            showAlert('User not found', 'danger');
+            return;
         }
-    }
-}
-
-async function promoteUser(userId) {
-    if (confirm('Are you sure you want to promote this user to admin?')) {
-        try {
-            await apiRequest(`/admin/users/${userId}/promote`, {
-                method: 'PUT',
-                body: JSON.stringify({ role: 'Admin' })
-            });
-            showAlert('User promoted successfully', 'success');
-            await loadUsersSection(); // Refresh table
-        } catch (error) {
-            console.error('Failed to promote user:', error);
-            showAlert('Failed to promote user', 'danger');
-        }
+        
+        // Create beautiful modal
+        const modalHTML = `
+            <div id="userDetailsModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;" onclick="if(event.target.id === 'userDetailsModal') document.getElementById('userDetailsModal').remove();">
+                <div style="background: white; border-radius: 12px; padding: 0; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation();">
+                    <!-- Header -->
+                    <div style="background: linear-gradient(135deg, #0ea5a4 0%, #0c8584 100%); color: white; padding: 25px; border-radius: 12px 12px 0 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="margin: 0; font-size: 24px;"><i class="fas fa-user-circle"></i> User Details</h2>
+                            <button onclick="document.getElementById('userDetailsModal').remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div style="padding: 30px;">
+                        <!-- User Info Card -->
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                                <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #0ea5a4, #0c8584); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                                    ${user.firstName.charAt(0)}${user.lastName.charAt(0)}
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 22px; color: #333;">${user.firstName} ${user.lastName}</h3>
+                                    <p style="margin: 5px 0 0 0; color: #666; display: flex; align-items: center; gap: 5px;">
+                                        <i class="fas fa-envelope" style="color: #0ea5a4;"></i> ${user.email}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Details Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div style="padding: 15px; background: white; border: 1px solid #e9ecef; border-radius: 8px;">
+                                <div style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Role</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #333;">
+                                    <span class="badge badge-${getRoleBadgeClass(user.userType)}">${user.userType}</span>
+                                </div>
+                            </div>
+                            <div style="padding: 15px; background: white; border: 1px solid #e9ecef; border-radius: 8px;">
+                                <div style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Status</div>
+                                <div style="font-size: 18px; font-weight: 600;">
+                                    <span class="badge badge-${getStatusBadgeForUser(user.status || 'Active').class}">${user.status || 'Active'}</span>
+                                </div>
+                            </div>
+                            <div style="padding: 15px; background: white; border: 1px solid #e9ecef; border-radius: 8px;">
+                                <div style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Email Verified</div>
+                                <div style="font-size: 18px; font-weight: 600; color: ${user.emailVerified ? '#28a745' : '#ffc107'};">
+                                    <i class="fas fa-${user.emailVerified ? 'check-circle' : 'exclamation-circle'}"></i> ${user.emailVerified ? 'Yes' : 'No'}
+                                </div>
+                            </div>
+                            <div style="padding: 15px; background: white; border: 1px solid #e9ecef; border-radius: 8px;">
+                                <div style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Member Since</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #333;">${formatDate(user.createdAt)}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Activity Stats -->
+                        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 8px;">
+                            <h4 style="margin: 0 0 15px 0; color: #333; font-size: 16px;"><i class="fas fa-chart-bar"></i> Activity Statistics</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div style="text-align: center; padding: 15px; background: white; border-radius: 6px;">
+                                    <div style="font-size: 28px; font-weight: bold; color: #0ea5a4;">${user.eventsCreated || 0}</div>
+                                    <div style="font-size: 12px; color: #666; text-transform: uppercase; margin-top: 5px;">Events Created</div>
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: white; border-radius: 6px;">
+                                    <div style="font-size: 28px; font-weight: bold; color: #0ea5a4;">${user.bookingsMade || 0}</div>
+                                    <div style="font-size: 12px; color: #666; text-transform: uppercase; margin-top: 5px;">Bookings Made</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div style="padding: 20px 30px; background: #f8f9fa; border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 10px;">
+                        <button onclick="document.getElementById('userDetailsModal').remove()" class="btn btn-outline">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    } catch (error) {
+        console.error('Failed to load user details:', error);
+        showAlert('Failed to load user details', 'danger');
     }
 }
 
@@ -993,6 +1128,179 @@ async function exportEvents() {
     }
 }
 
+// Export Report to HTML with real-time data
+async function exportReportToHTML() {
+    try {
+        showAlert('Generating report...', 'info');
+        
+        // Fetch fresh data
+        const statsData = await apiRequest('/admin/dashboard/stats');
+        const topCategories = await apiRequest('/admin/reports/top-categories');
+        const topOrganizers = await apiRequest('/admin/reports/top-organizers');
+        
+        const stats = statsData.stats;
+        const timeRange = document.getElementById('reportTimeRange')?.value || '30';
+        const exportDate = new Date().toLocaleString();
+        
+        // Generate HTML report
+        const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventHub Analytics Report - ${exportDate}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f5f5f5; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #0ea5a4; padding-bottom: 20px; }
+        .header h1 { color: #0ea5a4; font-size: 32px; margin-bottom: 10px; }
+        .header p { color: #666; font-size: 14px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: linear-gradient(135deg, #0ea5a4 0%, #0c8584 100%); color: white; padding: 30px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 36px; font-weight: bold; margin-bottom: 10px; }
+        .stat-label { font-size: 14px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
+        .section { margin-bottom: 40px; }
+        .section-title { font-size: 24px; color: #0ea5a4; margin-bottom: 20px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #e9ecef; }
+        th { background: #f8f9fa; color: #495057; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+        tr:hover { background: #f8f9fa; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #f8f9fa; margin-bottom: 10px; border-radius: 6px; }
+        .metric-label { font-weight: 600; color: #495057; }
+        .metric-value { font-size: 20px; font-weight: bold; color: #0ea5a4; }
+        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #e9ecef; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 EventHub Analytics Report</h1>
+            <p>Generated on ${exportDate} | Time Range: ${timeRange === 'all' ? 'All Time' : 'Last ' + timeRange + ' days'}</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">${(stats.totalUsers || 0).toLocaleString()}</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${(stats.totalEvents || 0).toLocaleString()}</div>
+                <div class="stat-label">Total Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">Rs. ${(stats.totalRevenue || 0).toLocaleString()}</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${(stats.totalBookings || 0).toLocaleString()}</div>
+                <div class="stat-label">Tickets Sold</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Platform Statistics</h2>
+            <div class="metric-row">
+                <span class="metric-label">Regular Users</span>
+                <span class="metric-value">${(stats.regularUsers || 0).toLocaleString()}</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Organizers</span>
+                <span class="metric-value">${(stats.organizers || 0).toLocaleString()}</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Published Events</span>
+                <span class="metric-value">${(stats.publishedEvents || 0).toLocaleString()}</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Draft Events</span>
+                <span class="metric-value">${(stats.draftEvents || 0).toLocaleString()}</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Completed Bookings</span>
+                <span class="metric-value">${(stats.paidBookings || 0).toLocaleString()}</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Top Event Categories</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Category</th>
+                        <th>Events</th>
+                        <th>Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${topCategories && topCategories.length > 0 ? topCategories.map((cat, idx) => `
+                    <tr>
+                        <td><strong>#${idx + 1}</strong></td>
+                        <td>${cat.name}</td>
+                        <td><span class="badge badge-info">${cat.eventCount} events</span></td>
+                        <td><strong>Rs. ${(cat.totalRevenue || 0).toLocaleString()}</strong></td>
+                    </tr>
+                    `).join('') : '<tr><td colspan="4" style="text-align: center;">No data available</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Top Organizers</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Organizer</th>
+                        <th>Events</th>
+                        <th>Bookings</th>
+                        <th>Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${topOrganizers && topOrganizers.length > 0 ? topOrganizers.map((org, idx) => `
+                    <tr>
+                        <td><strong>#${idx + 1}</strong></td>
+                        <td>${org.name}</td>
+                        <td><span class="badge badge-info">${org.eventCount} events</span></td>
+                        <td><span class="badge badge-success">${org.totalBookings} bookings</span></td>
+                        <td><strong>Rs. ${(org.totalRevenue || 0).toLocaleString()}</strong></td>
+                    </tr>
+                    `).join('') : '<tr><td colspan="5" style="text-align: center;">No data available</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>© ${new Date().getFullYear()} EventHub - Event Management Platform</p>
+            <p>This report contains real-time data exported from the EventHub admin dashboard</p>
+        </div>
+    </div>
+</body>
+</html>`;
+        
+        // Create and download HTML file
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `EventHub-Report-${new Date().toISOString().split('T')[0]}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showAlert('Report exported successfully!', 'success');
+    } catch (error) {
+        console.error('Export failed:', error);
+        showAlert('Failed to export report', 'danger');
+    }
+}
+
 // Initialize admin dashboard
 document.addEventListener('DOMContentLoaded', () => {
     // Update navigation if NavigationHelper is available
@@ -1126,10 +1434,10 @@ async function toggleUserStatus(userId, newStatus) {
     try {
         await apiRequest(`/admin/users/${userId}/status`, {
             method: 'PATCH',
-            body: JSON.stringify({ isActive: newStatus })
+            body: JSON.stringify({ status: newStatus })
         });
         
-        showAlert(`User status updated successfully!`, 'success');
+        showAlert(`User ${newStatus.toLowerCase()} successfully!`, 'success');
         
         const search = document.getElementById('userSearch')?.value || '';
         const userType = document.getElementById('userRoleFilter')?.value || '';
@@ -1140,6 +1448,236 @@ async function toggleUserStatus(userId, newStatus) {
     }
 }
 
+// Ban user permanently
+async function banUser(userId, userName) {
+    if (!confirm(`Are you sure you want to permanently BAN user "${userName}"? They will not be able to login or access the system. This does not delete their data.`)) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/users/${userId}/ban`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'Banned' })
+        });
+        
+        showAlert(`User "${userName}" has been permanently banned`, 'warning');
+        
+        const search = document.getElementById('userSearch')?.value || '';
+        const userType = document.getElementById('userRoleFilter')?.value || '';
+        const status = document.getElementById('userStatusFilter')?.value || '';
+        fetchUsers(currentUsersPage, search, userType, status);
+    } catch (error) {
+        showAlert('Failed to ban user', 'danger');
+    }
+}
+
+// Export users to PDF
+async function exportUsersToPDF() {
+    try {
+        showAlert('Generating PDF report...', 'info');
+        
+        // Fetch all users
+        const data = await apiRequest('/admin/users?page=1&limit=1000');
+        const users = data.users;
+        
+        if (!users || users.length === 0) {
+            showAlert('No users to export', 'warning');
+            return;
+        }
+        
+        // Create HTML report
+        const doc = `<!DOCTYPE html>
+<html>
+<head>
+    <title>EventHub Users Report</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #17a2b8;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            color: #17a2b8;
+            margin: 0;
+        }
+        .header p {
+            color: #666;
+            margin: 5px 0;
+        }
+        .summary {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-item h3 {
+            margin: 0;
+            color: #17a2b8;
+            font-size: 32px;
+        }
+        .summary-item p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th {
+            background: #17a2b8;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-success { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
+        .badge-danger { background: #dc3545; color: white; }
+        .badge-info { background: #17a2b8; color: white; }
+        .badge-primary { background: #007bff; color: white; }
+        .badge-secondary { background: #6c757d; color: white; }
+        .banned-row {
+            background: #ffe6e6 !important;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .print-btn:hover {
+            background: #138496;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">🖨️ Print to PDF</button>
+    
+    <div class="header">
+        <h1>🎫 EventHub Users Report</h1>
+        <p>Generated on ${new Date().toLocaleString()}</p>
+        <p>Total Users: ${users.length}</p>
+    </div>
+    
+    <div class="summary">
+        <div class="summary-item">
+            <h3>${users.filter(u => u.status === 'Active').length}</h3>
+            <p>Active Users</p>
+        </div>
+        <div class="summary-item">
+            <h3>${users.filter(u => u.userType === 'Organizer').length}</h3>
+            <p>Organizers</p>
+        </div>
+        <div class="summary-item">
+            <h3>${users.filter(u => u.status === 'Banned').length}</h3>
+            <p>Banned Users</p>
+        </div>
+        <div class="summary-item">
+            <h3>${users.filter(u => u.emailVerified).length}</h3>
+            <p>Verified</p>
+        </div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Verified</th>
+                <th>Join Date</th>
+                <th>Events</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${users.map(user => {
+                const statusBadge = getStatusBadgeForUser(user.status);
+                return `
+                <tr class="${user.status === 'Banned' ? 'banned-row' : ''}">
+                    <td><strong>${user.firstName} ${user.lastName}</strong></td>
+                    <td>${user.email}</td>
+                    <td><span class="badge badge-${getRoleBadgeClass(user.userType)}">${user.userType}</span></td>
+                    <td><span class="badge badge-${statusBadge.class}">${user.status || 'N/A'}</span></td>
+                    <td>${user.emailVerified ? '✓ Yes' : '✗ No'}${user.verificationStatus === 'Verified' && user.userType === 'Organizer' ? ' (Org ✓)' : ''}</td>
+                    <td>${formatDate(user.createdAt)}</td>
+                    <td>${user.eventsCreated || 0}</td>
+                </tr>
+            `}).join('')}
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <p><strong>EventHub Admin Panel</strong> | Confidential Report</p>
+        <p>This report contains sensitive user information. Handle with care.</p>
+    </div>
+</body>
+</html>`;
+        
+        // Create a blob and download
+        const blob = new Blob([doc], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `EventHub-Users-Report-${new Date().toISOString().split('T')[0]}.html`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('Report exported! Open the HTML file and use browser Print > Save as PDF', 'success');
+    } catch (error) {
+        console.error('Failed to export users:', error);
+        showAlert('Failed to export users', 'danger');
+    }
+}
+
+// Promote user to organizer
 function loadSectionData(sectionName) {
     switch(sectionName) {
         case 'dashboard':
@@ -1166,3 +1704,173 @@ window.AdminDashboard = {
     fetchEvents,
     fetchDashboardStats
 };
+
+// System Management Functions
+async function backupSystem() {
+    if (!confirm('This will create a backup of the system database. Continue?')) {
+        return;
+    }
+    
+    try {
+        showAlert('Creating system backup... This may take a few moments.', 'info');
+        
+        // Call backup endpoint
+        await apiRequest('/admin/system/backup', {
+            method: 'POST'
+        });
+        
+        showAlert('✅ System backup created successfully!', 'success');
+    } catch (error) {
+        console.error('Backup failed:', error);
+        showAlert('❌ Backup failed. Please contact system administrator.', 'danger');
+    }
+}
+
+async function checkSystemHealth() {
+    try {
+        showAlert('Checking system health...', 'info');
+        
+        // Check health endpoint
+        const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+        const health = await response.json();
+        
+        if (health.status === 'healthy') {
+            const uptime = Math.floor(health.server.uptime / 60); // Convert to minutes
+            const message = `
+✅ System Status: HEALTHY
+📊 Database: ${health.database.connected ? 'Connected' : 'Disconnected'}
+⏱️ Uptime: ${uptime} minutes
+🔧 Environment: ${health.server.environment}
+            `.trim();
+            
+            alert(message);
+            showAlert('System is healthy!', 'success');
+        } else {
+            showAlert('⚠️ System health check failed!', 'warning');
+        }
+    } catch (error) {
+        console.error('Health check failed:', error);
+        showAlert('❌ Unable to check system health', 'danger');
+    }
+}
+
+function showBulkActionsModal() {
+    const modal = document.createElement('div');
+    modal.id = 'bulkActionsModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+            <h2 style="margin-top: 0;">Bulk Actions</h2>
+            <p>Select an action to perform on multiple events:</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
+                <button class="btn btn-primary" onclick="bulkApproveEvents()">
+                    <i class="fas fa-check-circle"></i> Approve Pending Events
+                </button>
+                <button class="btn btn-warning" onclick="bulkUpdateEventStatus()">
+                    <i class="fas fa-edit"></i> Update Event Status
+                </button>
+                <button class="btn btn-outline" onclick="bulkExportEvents()">
+                    <i class="fas fa-file-export"></i> Export All Events
+                </button>
+            </div>
+            
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="document.getElementById('bulkActionsModal').remove()">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+async function bulkApproveEvents() {
+    const count = await apiRequest('/admin/events?status=Pending');
+    const pendingCount = count.totalEvents || 0;
+    
+    if (pendingCount === 0) {
+        showAlert('No pending events to approve', 'info');
+        return;
+    }
+    
+    if (!confirm(`Approve all ${pendingCount} pending events? This will make them visible to users.`)) {
+        return;
+    }
+    
+    try {
+        showAlert('Processing bulk approval...', 'info');
+        
+        await apiRequest('/admin/events/bulk-approve', {
+            method: 'POST'
+        });
+        
+        showAlert(`✅ Successfully approved ${pendingCount} events!`, 'success');
+        document.getElementById('bulkActionsModal')?.remove();
+        await loadEventsSection();
+    } catch (error) {
+        console.error('Bulk approve failed:', error);
+        showAlert('Bulk approval failed', 'danger');
+    }
+}
+
+function bulkUpdateEventStatus() {
+    showAlert('This feature allows you to update multiple events at once. Coming soon!', 'info');
+    document.getElementById('bulkActionsModal')?.remove();
+}
+
+function bulkExportEvents() {
+    exportEvents();
+    document.getElementById('bulkActionsModal')?.remove();
+}
+
+// Make functions globally available
+window.backupSystem = backupSystem;
+window.checkSystemHealth = checkSystemHealth;
+window.showBulkActionsModal = showBulkActionsModal;
+window.bulkApproveEvents = bulkApproveEvents;
+window.bulkUpdateEventStatus = bulkUpdateEventStatus;
+window.bulkExportEvents = bulkExportEvents;
+
+// Refresh dashboard data
+async function refreshDashboard() {
+    try {
+        showAlert('Refreshing dashboard data...', 'info');
+        await fetchDashboardStats();
+        const currentSection = document.querySelector('.dashboard-section.active');
+        if (currentSection) {
+            const sectionId = currentSection.id.replace('-section', '');
+            if (sectionId === 'users') {
+                await fetchUsers(currentUsersPage);
+            } else if (sectionId === 'events') {
+                await fetchEvents(currentEventsPage);
+            }
+        }
+        showAlert('Dashboard refreshed successfully!', 'success');
+    } catch (error) {
+        console.error('Refresh failed:', error);
+        showAlert('Failed to refresh dashboard', 'danger');
+    }
+}
+
+window.refreshDashboard = refreshDashboard;

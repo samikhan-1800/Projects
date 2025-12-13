@@ -443,9 +443,15 @@
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 10px;">
                                 <a href="event-detail.html?id=${event.eventId}" class="btn btn-outline">View Details</a>
-                                <button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
-                                    ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
-                                </button>
+                                ${(() => {
+                                    const userType = localStorage.getItem('userType');
+                                    if (userType === 'Admin') {
+                                        return ''; // Don't show book button to admins
+                                    }
+                                    return `<button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
+                                        ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
+                                    </button>`;
+                                })()}
                             </div>
                         </div>
                     </div>

@@ -99,7 +99,15 @@ async function apiRequest(endpoint, options = {}) {
         }
         
         if (response.status === 403) {
-            throw new Error('Access forbidden. You do not have permission.');
+            const errorData = await response.json().catch(() => ({ error: 'Access forbidden' }));
+            // Check for banned user message - don't show alert here, let the form handler do it
+            if (errorData.error && errorData.error.includes('banned')) {
+                throw new Error(errorData.error);
+            }
+            if (errorData.error && errorData.error.includes('suspended')) {
+                throw new Error(errorData.error);
+            }
+            throw new Error(errorData.error || 'Access forbidden. You do not have permission.');
         }
         
         if (response.status === 404) {
@@ -118,8 +126,8 @@ async function apiRequest(endpoint, options = {}) {
         
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
             showAlert('Cannot connect to server. Please ensure the backend is running.', 'danger');
-        } else if (error.message !== 'Unauthorized') {
-            // Don't show alert for unauthorized since we already handle that
+        } else if (error.message !== 'Unauthorized' && !error.message.includes('banned') && !error.message.includes('suspended')) {
+            // Don't show alert for unauthorized, banned, or suspended since form handlers deal with these
             showAlert(error.message || 'Request failed. Please try again.', 'danger');
         }
         throw error;
@@ -250,7 +258,7 @@ function createEventCard(event, isFeatured = false) {
     if (typeof EventCardGenerator !== 'undefined') {
         return EventCardGenerator.create(event, { 
             showBookButton: !isFeatured,
-            isFromPagesFolder: false // Home page is in root
+            isFromPagesFolder: window.location.pathname.includes('/pages/')
         });
     }
     
@@ -278,6 +286,12 @@ function createEventCard(event, isFeatured = false) {
     const eventImage = event.featuredImageUrl ? 
         `<img src="${event.featuredImageUrl}" alt="${event.title}" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\\'fas fa-${categoryIcon}\\'></i>'" />` : 
         `<i class="fas fa-${categoryIcon}"></i>`;
+    
+    // Determine correct path based on current location
+    const isInPagesFolder = window.location.pathname.includes('/pages/');
+    const detailUrl = isInPagesFolder ? 
+        `event-detail.html?id=${event.eventId}` : 
+        `pages/event-detail.html?id=${event.eventId}`;
 
     return `
         <div class="event-card">
@@ -308,13 +322,18 @@ function createEventCard(event, isFeatured = false) {
                     ${event.isFree || event.price === 0 ? 'Free' : `Rs. ${event.price}`}
                 </div>
                 <div class="card-footer">
-                    ${isFeatured ? 
-                        `<a href="pages/event-detail.html?id=${event.eventId}" class="btn btn-primary">View Details</a>` :
-                        `<a href="pages/event-detail.html?id=${event.eventId}" class="btn btn-outline btn-small">View Details</a>
-                         <button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
-                             ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
-                         </button>`
-                    }
+                    ${(() => {
+                        const userType = localStorage.getItem('userType');
+                        const isAdmin = userType === 'Admin';
+                        if (isFeatured || isAdmin) {
+                            return `<a href="${detailUrl}" class="btn btn-primary">View Details</a>`;
+                        } else {
+                            return `<a href="${detailUrl}" class="btn btn-outline btn-small">View Details</a>
+                                    <button onclick="bookEvent('${event.eventId}')" class="btn btn-primary" ${availableSeats <= 0 ? 'disabled' : ''}>
+                                        ${availableSeats <= 0 ? 'Sold Out' : 'Book Now'}
+                                    </button>`;
+                        }
+                    })()}
                 </div>
             </div>
         </div>
@@ -984,7 +1003,16 @@ async function handleFormSubmission(formType, form) {
                     }, 1500);
                 } catch (error) {
                     console.error('Login failed:', error);
-                    // Error already shown by apiRequest
+                    // Show specific message for banned/suspended users
+                    if (error.message && (error.message.toLowerCase().includes('banned') || error.message.toLowerCase().includes('ban'))) {
+                        showAlert('🚫 Your account has been permanently banned. Please contact support@eventhub.com for assistance.', 'danger');
+                    } else if (error.message && (error.message.toLowerCase().includes('suspended') || error.message.toLowerCase().includes('inactive'))) {
+                        showAlert('⚠️ Your account is suspended or inactive. Please contact support@eventhub.com for assistance.', 'warning');
+                    } else if (error.message && error.message !== 'Unauthorized') {
+                        // Show the actual error message if it's not already shown
+                        showAlert(error.message, 'danger');
+                    }
+                    // Unauthorized errors are already handled by apiRequest
                 }
                 break;
                 
@@ -1268,6 +1296,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load user dashboard
     if (window.location.pathname.includes('user-dashboard.html')) {
+        // Redirect admins to their dashboard
+        const userType = localStorage.getItem('userType');
+        if (userType === 'Admin') {
+            showAlert('Admins use the Admin Dashboard. Redirecting...', 'info');
+            setTimeout(() => window.location.href = 'admin-dashboard.html', 1500);
+            return;
+        }
         loadUserDashboard();
     }
     

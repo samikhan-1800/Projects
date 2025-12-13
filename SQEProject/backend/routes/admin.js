@@ -113,14 +113,17 @@ router.get('/users', authenticateToken, requireRole('Admin'), async (req, res) =
                 u.EmailVerified as emailVerified,
                 u.CreatedAt as createdAt,
                 u.LastLoginAt as lastLoginAt,
+                o.VerificationStatus as verificationStatus,
+                o.OrganizationName as organizationName,
                 COALESCE(eventCount.count, 0) as eventsCreated,
                 COALESCE(bookingCount.count, 0) as bookingsMade
             FROM [Users].[Users] u
+            LEFT JOIN [Users].[Organizers] o ON u.UserId = o.UserId
             LEFT JOIN (
                 SELECT OrganizerId, COUNT(*) as count
                 FROM [Events].[Events]
                 GROUP BY OrganizerId
-            ) eventCount ON u.UserId = eventCount.OrganizerId
+            ) eventCount ON o.OrganizerId = eventCount.OrganizerId
             LEFT JOIN (
                 SELECT UserId, COUNT(*) as count
                 FROM [Events].[Bookings]
@@ -180,6 +183,106 @@ router.patch('/users/:id/status', authenticateToken, requireRole('Admin'), async
     }
 });
 
+// Ban user permanently
+router.patch('/users/:id/ban', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if user exists and is not an admin
+        const userCheck = await database.query(`
+            SELECT UserId, Role, FirstName, LastName, Status FROM [Users].[Users] WHERE UserId = @userId
+        `, { userId: id });
+
+        if (userCheck.recordset.length === 0) {
+            return res.status(404).json({
+                error: 'User not found'
+            });
+        }
+
+        if (userCheck.recordset[0].Role === 'Admin') {
+            return res.status(403).json({
+                error: 'Cannot ban admin users'
+            });
+        }
+
+        // Update user status to Banned
+        await database.query(`
+            UPDATE [Users].[Users]
+            SET Status = 'Banned', UpdatedAt = GETUTCDATE()
+            WHERE UserId = @userId
+        `, { userId: id });
+
+        // Also cancel all their active events if they're an organizer
+        const organizerResult = await database.query(`
+            SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+        `, { userId: id });
+
+        if (organizerResult.recordset.length > 0) {
+            const organizerId = organizerResult.recordset[0].OrganizerId;
+            
+            // Set all their pending/published events to cancelled
+            await database.query(`
+                UPDATE [Events].[Events]
+                SET Status = 'Cancelled', UpdatedAt = GETUTCDATE()
+                WHERE OrganizerId = @organizerId 
+                AND Status IN ('Published', 'Pending', 'Draft')
+            `, { organizerId });
+        }
+
+        res.json({
+            message: 'User banned successfully',
+            bannedUser: `${userCheck.recordset[0].FirstName} ${userCheck.recordset[0].LastName}`
+        });
+    } catch (error) {
+        console.error('Failed to ban user:', error);
+        console.error('Error details:', error.message);
+        res.status(500).json({
+            error: 'Failed to ban user',
+            details: error.message
+        });
+    }
+});
+
+// Update user role
+router.patch('/users/:id/role', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body;
+
+        if (!['User', 'Organizer'].includes(role)) {
+            return res.status(400).json({
+                error: 'Invalid role. Must be User or Organizer'
+            });
+        }
+
+        // Check if user is an admin
+        const userCheck = await database.query(`
+            SELECT Role FROM [Users].[Users] WHERE UserId = @userId
+        `, { userId: id });
+
+        if (userCheck.recordset.length > 0 && userCheck.recordset[0].Role === 'Admin') {
+            return res.status(403).json({
+                error: 'Cannot change admin role'
+            });
+        }
+
+        await database.query(`
+            UPDATE [Users].[Users]
+            SET Role = @role, UpdatedAt = GETUTCDATE()
+            WHERE UserId = @userId
+        `, { userId: id, role });
+
+        res.json({
+            message: 'User role updated successfully'
+        });
+    } catch (error) {
+        console.error('Failed to update user role:', error);
+        res.status(500).json({
+            error: 'Failed to update user role'
+        });
+    }
+});
+
 // Manage events
 router.get('/events', authenticateToken, requireRole('Admin'), async (req, res) => {
     try {
@@ -220,11 +323,12 @@ router.get('/events', authenticateToken, requireRole('Admin'), async (req, res) 
                 e.IsOnline as isOnline,
                 e.CreatedAt as createdAt,
                 c.Name as categoryName,
-                u.FirstName + ' ' + u.LastName as organizerName,
+                COALESCE(o.OrganizationName, u.FirstName + ' ' + u.LastName) as organizerName,
                 u.Email as organizerEmail
             FROM [Events].[Events] e
-            LEFT JOIN [Categories].[Categories] c ON e.CategoryId = c.CategoryId
-            LEFT JOIN [Users].[Users] u ON e.OrganizerId = u.UserId
+            LEFT JOIN [Events].[Categories] c ON e.CategoryId = c.CategoryId
+            LEFT JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
+            LEFT JOIN [Users].[Users] u ON o.UserId = u.UserId
             ${whereClause}
             ORDER BY e.CreatedAt DESC
             OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
@@ -257,14 +361,66 @@ router.get('/events', authenticateToken, requireRole('Admin'), async (req, res) 
 });
 
 // Update event status
+// Approve event - changes status to Published
+router.patch('/events/:id/approve', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const adminId = req.user.userId;
+
+        await database.query(`
+            UPDATE [Events].[Events]
+            SET Status = 'Published', 
+                ApprovedBy = @adminId,
+                PublishedAt = GETUTCDATE(),
+                UpdatedAt = GETUTCDATE()
+            WHERE EventId = @eventId
+        `, { eventId: id, adminId });
+
+        res.json({
+            message: 'Event approved and published successfully'
+        });
+    } catch (error) {
+        console.error('Failed to approve event:', error);
+        res.status(500).json({
+            error: 'Failed to approve event'
+        });
+    }
+});
+
+// Reject event
+router.patch('/events/:id/reject', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        await database.query(`
+            UPDATE [Events].[Events]
+            SET Status = 'Rejected',
+                UpdatedAt = GETUTCDATE()
+            WHERE EventId = @eventId
+        `, { eventId: id });
+
+        res.json({
+            message: 'Event rejected successfully',
+            reason: reason || 'No reason provided'
+        });
+    } catch (error) {
+        console.error('Failed to reject event:', error);
+        res.status(500).json({
+            error: 'Failed to reject event'
+        });
+    }
+});
+
+// Update event status (general status changes)
 router.patch('/events/:id/status', authenticateToken, requireRole('Admin'), async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
-        if (!['Draft', 'Published', 'Cancelled'].includes(status)) {
+        if (!['Draft', 'Published', 'Pending', 'Cancelled', 'Rejected'].includes(status)) {
             return res.status(400).json({
-                error: 'Invalid status. Must be Draft, Published, or Cancelled'
+                error: 'Invalid status'
             });
         }
 
@@ -501,6 +657,46 @@ router.get('/reports/top-organizers', authenticateToken, requireRole('Admin'), a
         console.error('Failed to fetch top organizers:', error);
         res.status(500).json({
             error: 'Failed to fetch top organizers'
+        });
+    }
+});
+
+// Bulk approve all pending events
+router.post('/events/bulk-approve', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const adminId = req.user.userId;
+
+        // Get all pending events
+        const pendingEvents = await database.query(`
+            SELECT EventId FROM [Events].[Events]
+            WHERE Status = 'Pending'
+        `);
+
+        if (pendingEvents.recordset.length === 0) {
+            return res.json({
+                message: 'No pending events to approve',
+                approvedCount: 0
+            });
+        }
+
+        // Approve all pending events
+        await database.query(`
+            UPDATE [Events].[Events]
+            SET Status = 'Published',
+                ApprovedBy = @adminId,
+                PublishedAt = GETUTCDATE(),
+                UpdatedAt = GETUTCDATE()
+            WHERE Status = 'Pending'
+        `, { adminId });
+
+        res.json({
+            message: 'All pending events approved successfully',
+            approvedCount: pendingEvents.recordset.length
+        });
+    } catch (error) {
+        console.error('Failed to bulk approve events:', error);
+        res.status(500).json({
+            error: 'Failed to bulk approve events'
         });
     }
 });

@@ -679,7 +679,11 @@ const EventCardGenerator = {
         
         let cardFooter = `<a href="${detailUrl}" class="btn btn-outline btn-small">View Details</a>`;
         
-        if (showBookButton) {
+        // Check if user is admin - admins cannot book events
+        const userType = typeof localStorage !== 'undefined' ? localStorage.getItem('userType') : null;
+        const isAdmin = userType === 'Admin';
+        
+        if (showBookButton && !isAdmin) {
             if (availableSeats <= 0) {
                 cardFooter += `<button class="btn btn-primary btn-small" disabled>Sold Out</button>`;
             } else {
