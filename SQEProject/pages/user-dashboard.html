@@ -68,9 +68,6 @@
                 <li><a href="#profile" onclick="showSection('profile')">
                     <i class="fas fa-user"></i> Profile
                 </a></li>
-                <li><a href="#settings" onclick="showSection('settings')">
-                    <i class="fas fa-cog"></i> Settings
-                </a></li>
             </ul>
         </div>
 
@@ -236,69 +233,6 @@
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
                     </form>
-                </div>
-            </div>
-
-            <!-- Settings Section -->
-            <div id="settings-section" class="dashboard-section">
-                <div class="dashboard-header">
-                    <div>
-                        <h1>Settings</h1>
-                        <p>Manage your account preferences</p>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Notification Preferences</h3>
-                    <div class="form-group">
-                        <div class="form-checkbox">
-                            <input type="checkbox" id="emailNotifications" checked>
-                            <label for="emailNotifications">Email notifications for new events</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="form-checkbox">
-                            <input type="checkbox" id="eventReminders" checked>
-                            <label for="eventReminders">Event reminders</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="form-checkbox">
-                            <input type="checkbox" id="newsletterSubscription" checked>
-                            <label for="newsletterSubscription">Weekly newsletter</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="form-checkbox">
-                            <input type="checkbox" id="smsNotifications">
-                            <label for="smsNotifications">SMS notifications</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Privacy Settings</h3>
-                    <div class="form-group">
-                        <div class="form-checkbox">
-                            <input type="checkbox" id="profileVisibility" checked>
-                            <label for="profileVisibility">Make my profile visible to other users</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="form-checkbox">
-                            <input type="checkbox" id="dataSharing">
-                            <label for="dataSharing">Share anonymized data for analytics</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Account Actions</h3>
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                        <button class="btn btn-outline" onclick="changePassword()">Change Password</button>
-                        <button class="btn btn-outline" onclick="downloadData()">Download My Data</button>
-                        <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
-                    </div>
                 </div>
             </div>
         </div>
