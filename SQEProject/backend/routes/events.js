@@ -267,7 +267,7 @@ router.post('/', async (req, res) => {
             onlineMeetingUrl,
             capacity,
             price,
-            currency = 'USD',
+            currency = 'PKR',
             isFree,
             contactEmail,
             contactPhone,

@@ -444,6 +444,9 @@ function showSection(sectionName) {
         case 'events':
             loadEventsSection();
             break;
+        case 'contacts':
+            loadContacts();
+            break;
         case 'reports':
             loadReportsSection();
             break;
@@ -502,9 +505,90 @@ async function loadReportsSection() {
     // Just ensure they're fresh
     await fetchDashboardStats();
     
+    // Load revenue summary table
+    await loadRevenueSummary();
+    
     // Load top categories and organizers
     await loadTopCategories();
     await loadTopOrganizers();
+}
+
+// Load revenue summary table
+async function loadRevenueSummary() {
+    const tbody = document.getElementById('revenueSummaryTable');
+    if (!tbody) return;
+    
+    try {
+        // Get monthly revenue data for last 6 months
+        const data = await apiRequest('/admin/dashboard/stats');
+        
+        if (!data || !data.monthlyStats) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No revenue data available</td></tr>';
+            return;
+        }
+        
+        // Group by month and calculate revenue
+        const monthlyRevenue = {};
+        data.monthlyStats.forEach(stat => {
+            const monthKey = `${stat.year}-${String(stat.month).padStart(2, '0')}`;
+            if (!monthlyRevenue[monthKey]) {
+                monthlyRevenue[monthKey] = {
+                    month: new Date(stat.year, stat.month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                    bookings: 0,
+                    totalSales: 0
+                };
+            }
+            if (stat.type === 'bookings') {
+                monthlyRevenue[monthKey].bookings = stat.count;
+            }
+        });
+        
+        // Get actual revenue data
+        const stats = data.stats;
+        const avgRevenuePerBooking = stats.totalRevenue / (stats.totalBookings || 1);
+        
+        // Generate table rows (last 6 months)
+        const months = Object.keys(monthlyRevenue).sort().reverse().slice(0, 6);
+        
+        if (months.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No revenue data for recent months</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = months.map((monthKey, index) => {
+            const data = monthlyRevenue[monthKey];
+            const totalSales = data.bookings * avgRevenuePerBooking;
+            const platformFees = totalSales * 0.128; // 12.8% platform fee
+            const organizerPayouts = totalSales - platformFees;
+            const netRevenue = platformFees;
+            
+            // Calculate growth
+            const prevMonthKey = months[index + 1];
+            let growth = 0;
+            if (prevMonthKey && monthlyRevenue[prevMonthKey]) {
+                const prevSales = monthlyRevenue[prevMonthKey].bookings * avgRevenuePerBooking;
+                growth = prevSales > 0 ? ((totalSales - prevSales) / prevSales * 100) : 0;
+            }
+            
+            const growthIcon = growth > 0 ? '↑' : growth < 0 ? '↓' : '→';
+            const growthClass = growth > 0 ? 'text-success' : growth < 0 ? 'text-danger' : 'text-muted';
+            
+            return `
+                <tr>
+                    <td>${data.month}</td>
+                    <td>Rs. ${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>Rs. ${platformFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>Rs. ${organizerPayouts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>Rs. ${netRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="${growthClass}">${growthIcon} ${Math.abs(growth).toFixed(1)}%</td>
+                </tr>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Failed to load revenue summary:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load revenue data</td></tr>';
+    }
 }
 
 // Load tickets section
@@ -1874,3 +1958,273 @@ async function refreshDashboard() {
 }
 
 window.refreshDashboard = refreshDashboard;
+
+// ===========================
+// CONTACT MESSAGES MANAGEMENT
+// ===========================
+
+let allContacts = [];
+
+async function loadContacts() {
+    try {
+        const status = document.getElementById('contactStatusFilter')?.value || '';
+        const queryParam = status ? `?status=${status}` : '';
+        
+        const data = await apiRequest(`/contacts${queryParam}`);
+        allContacts = data.contacts || [];
+        
+        // Update stats
+        await loadContactStats();
+        
+        // Render table
+        renderContactsTable();
+    } catch (error) {
+        console.error('Failed to load contacts:', error);
+        document.getElementById('contactsTableBody').innerHTML = 
+            '<tr><td colspan="7" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load contacts</td></tr>';
+    }
+}
+
+async function loadContactStats() {
+    try {
+        const stats = await apiRequest('/contacts/stats/summary');
+        
+        document.getElementById('totalContacts').textContent = stats.total || 0;
+        document.getElementById('newContacts').textContent = stats.new || 0;
+        document.getElementById('repliedContacts').textContent = stats.replied || 0;
+        document.getElementById('resolvedContacts').textContent = stats.resolved || 0;
+    } catch (error) {
+        console.error('Failed to load contact stats:', error);
+    }
+}
+
+function renderContactsTable() {
+    const tbody = document.getElementById('contactsTableBody');
+    
+    if (!allContacts || allContacts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No contact messages found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = allContacts.map(contact => {
+        const date = new Date(contact.createdAt).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        
+        const statusColors = {
+            'New': 'primary',
+            'Read': 'info',
+            'Replied': 'warning',
+            'Resolved': 'success'
+        };
+        
+        const statusColor = statusColors[contact.status] || 'secondary';
+        const messagePreview = (contact.message || '').substring(0, 50) + '...';
+        
+        return `
+            <tr onclick="viewContactDetails(${contact.contactId})" style="cursor: pointer;">
+                <td><strong>${escapeHtml(contact.name)}</strong></td>
+                <td>${escapeHtml(contact.email)}</td>
+                <td>
+                    <span class="badge badge-${getSubjectColor(contact.subject)}">
+                        ${formatSubject(contact.subject)}
+                    </span>
+                </td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${escapeHtml(messagePreview)}
+                </td>
+                <td>${date}</td>
+                <td>
+                    <span class="badge badge-${statusColor}">${contact.status}</span>
+                </td>
+                <td onclick="event.stopPropagation();">
+                    <button class="btn btn-small btn-outline" onclick="viewContactDetails(${contact.contactId})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="deleteContact(${contact.contactId})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getSubjectColor(subject) {
+    const colors = {
+        'general': 'info',
+        'support': 'warning',
+        'billing': 'danger',
+        'organizer': 'primary',
+        'partnership': 'success',
+        'feedback': 'info',
+        'other': 'secondary'
+    };
+    return colors[subject] || 'secondary';
+}
+
+function formatSubject(subject) {
+    const formatted = {
+        'general': 'General',
+        'support': 'Support',
+        'billing': 'Billing',
+        'organizer': 'Organizer',
+        'partnership': 'Partnership',
+        'feedback': 'Feedback',
+        'other': 'Other'
+    };
+    return formatted[subject] || subject;
+}
+
+function viewContactDetails(contactId) {
+    const contact = allContacts.find(c => c.contactId === contactId);
+    if (!contact) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.id = 'contactDetailsModal';
+    
+    const date = new Date(contact.createdAt).toLocaleString();
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-envelope-open"></i> Contact Message Details</h2>
+                <button class="modal-close" onclick="closeContactModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label style="font-weight: bold; color: #666; font-size: 0.9em;">Name</label>
+                        <p style="margin: 5px 0;">${escapeHtml(contact.name)}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: #666; font-size: 0.9em;">Email</label>
+                        <p style="margin: 5px 0;"><a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a></p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: #666; font-size: 0.9em;">Phone</label>
+                        <p style="margin: 5px 0;">${escapeHtml(contact.phone || 'N/A')}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: #666; font-size: 0.9em;">Subject</label>
+                        <p style="margin: 5px 0;">${formatSubject(contact.subject)}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: #666; font-size: 0.9em;">Date</label>
+                        <p style="margin: 5px 0;">${date}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: #666; font-size: 0.9em;">Newsletter</label>
+                        <p style="margin: 5px 0;">${contact.newsletter ? 'Yes' : 'No'}</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: bold; color: #666; font-size: 0.9em;">Message</label>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 5px;">
+                        ${escapeHtml(contact.message).replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Status</label>
+                    <select class="form-control" id="contactStatus${contactId}">
+                        <option value="New" ${contact.status === 'New' ? 'selected' : ''}>New</option>
+                        <option value="Read" ${contact.status === 'Read' ? 'selected' : ''}>Read</option>
+                        <option value="Replied" ${contact.status === 'Replied' ? 'selected' : ''}>Replied</option>
+                        <option value="Resolved" ${contact.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Admin Notes</label>
+                    <textarea class="form-control" id="contactNotes${contactId}" rows="3" placeholder="Add internal notes...">${escapeHtml(contact.adminNotes || '')}</textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-outline" onclick="closeContactModal()">Close</button>
+                    <button class="btn btn-primary" onclick="updateContact(${contactId})">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Mark as read if it's new
+    if (contact.status === 'New') {
+        setTimeout(() => {
+            updateContactStatus(contactId, 'Read');
+        }, 1000);
+    }
+}
+
+function closeContactModal() {
+    const modal = document.getElementById('contactDetailsModal');
+    if (modal) modal.remove();
+}
+
+async function updateContact(contactId) {
+    try {
+        const status = document.getElementById(`contactStatus${contactId}`).value;
+        const notes = document.getElementById(`contactNotes${contactId}`).value;
+        
+        await apiRequest(`/contacts/${contactId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ status, adminNotes: notes })
+        });
+        
+        showAlert('Contact updated successfully', 'success');
+        closeContactModal();
+        await loadContacts();
+    } catch (error) {
+        console.error('Failed to update contact:', error);
+        showAlert('Failed to update contact', 'danger');
+    }
+}
+
+async function updateContactStatus(contactId, status) {
+    try {
+        await apiRequest(`/contacts/${contactId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ status })
+        });
+        await loadContacts();
+    } catch (error) {
+        console.error('Failed to update contact status:', error);
+    }
+}
+
+async function deleteContact(contactId) {
+    if (!confirm('Are you sure you want to delete this contact message?')) return;
+    
+    try {
+        await apiRequest(`/contacts/${contactId}`, {
+            method: 'DELETE'
+        });
+        
+        showAlert('Contact deleted successfully', 'success');
+        await loadContacts();
+    } catch (error) {
+        console.error('Failed to delete contact:', error);
+        showAlert('Failed to delete contact', 'danger');
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Make functions globally available
+window.loadContacts = loadContacts;
+window.viewContactDetails = viewContactDetails;
+window.closeContactModal = closeContactModal;
+window.updateContact = updateContact;
+window.deleteContact = deleteContact;

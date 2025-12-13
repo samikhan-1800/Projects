@@ -23,7 +23,27 @@ const navToggle = document.getElementById('navToggle');
 const navMenu = document.getElementById('navMenu');
 const featuredEventsContainer = document.getElementById('featuredEvents');
 
-// Navigation Toggle
+// Sidebar Toggle Logic
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebar = document.querySelector('.sidebar');
+
+if (sidebarToggle && sidebar) {
+    sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth < 992 && 
+            sidebar.classList.contains('active') && 
+            !sidebar.contains(e.target) && 
+            !sidebarToggle.contains(e.target)) {
+            sidebar.classList.remove('active');
+        }
+    });
+}
+
+// Navigation Toggle (Legacy/Custom)
 if (navToggle && navMenu) {
     navToggle.addEventListener('click', () => {
         navMenu.classList.toggle('active');
@@ -1050,7 +1070,7 @@ async function handleFormSubmission(formType, form) {
                 
             case 'contactForm':
                 try {
-                    await apiRequest('/contact', {
+                    await apiRequest('/contacts/submit', {
                         method: 'POST',
                         body: JSON.stringify(data)
                     });
@@ -1150,11 +1170,11 @@ function updateNavigation() {
             const prefix = isInPagesFolder ? '' : 'pages/';
             
             navAuth.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <a href="${prefix}${dashboardLink}" style="color: inherit; text-decoration: none;">
-                        <span style="cursor: pointer;">Welcome, ${userName}!</span>
+                <div class="d-flex align-items-center gap-3">
+                    <a href="${prefix}${dashboardLink}" class="text-decoration-none text-dark fw-bold">
+                        Welcome, ${userName}!
                     </a>
-                    <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>
                 </div>
             `;
         } catch (e) {
@@ -1166,7 +1186,7 @@ function updateNavigation() {
         const prefix = isInPagesFolder ? '' : 'pages/';
         
         navAuth.innerHTML = `
-            <a href="${prefix}login.html" class="btn btn-outline">Login</a>
+            <a href="${prefix}login.html" class="btn btn-outline-primary me-2">Login</a>
             <a href="${prefix}register.html" class="btn btn-primary">Register</a>
         `;
     }

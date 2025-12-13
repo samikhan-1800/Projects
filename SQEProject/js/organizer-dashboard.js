@@ -420,7 +420,7 @@ async function createEvent(formData) {
             onlineMeetingUrl: formData.get('onlineMeetingUrl') || null,
             capacity: parseInt(formData.get('capacity')) || 100,
             price: parseFloat(formData.get('ticketPrice')) || 0,
-            currency: 'USD',
+            currency: 'PKR',
             isFree: parseFloat(formData.get('ticketPrice')) === 0,
             description: formData.get('description'),
             shortDescription: formData.get('description')?.substring(0, 150) + '...',

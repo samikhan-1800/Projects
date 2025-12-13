@@ -4,34 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Organizer Dashboard - EventHub</title>
-    <link rel="stylesheet" href="../css/styles.css">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="../css/styles.css">
 </head>
-<body>
+<body class="page-transition">
     <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <i class="fas fa-calendar-alt"></i>
-                <a href="../index.html" style="color: inherit; text-decoration: none;">EventHub</a>
-            </div>
-            <div class="nav-menu" id="navMenu">
-                <a href="../index.html" class="nav-link">Home</a>
-                <a href="events.html" class="nav-link">Events</a>
-                <a href="about.html" class="nav-link">About</a>
-                <a href="contact.html" class="nav-link">Contact</a>
-                <div class="nav-auth">
-                    <div style="display: flex; align-items: center; gap: 15px;">
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-calendar-alt me-2"></i>EventHub
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="../index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="events.html">Events</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="about.html">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="contact.html">Contact</a>
+                    </li>
+                </ul>
+                <div class="nav-auth ms-lg-4 d-flex gap-2">
+                    <div class="d-flex align-items-center gap-3">
                         <span>Welcome, Jane!</span>
-                        <button class="btn btn-outline btn-small" onclick="logout()">Logout</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>
                     </div>
                 </div>
-            </div>
-            <div class="nav-toggle" id="navToggle">
-                <span></span>
-                <span></span>
-                <span></span>
             </div>
         </div>
     </nav>
@@ -67,6 +81,11 @@
 
         <!-- Main Content -->
         <div class="main-content">
+            <!-- Mobile Sidebar Toggle -->
+            <button class="btn btn-outline-primary d-lg-none mb-3" id="sidebarToggle">
+                <i class="fas fa-bars me-2"></i>Menu
+            </button>
+
             <!-- Dashboard Overview -->
             <div id="dashboard-section" class="dashboard-section active">
                 <div class="dashboard-header">
@@ -97,7 +116,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-card-icon">
-                            <i class="fas fa-dollar-sign"></i>
+                            <i class="fas fa-coins"></i>
                         </div>
                         <div class="stat-card-value">Rs. 24,650</div>
                         <div class="stat-card-label">Total Revenue</div>
@@ -381,7 +400,7 @@
                                     <span>350/500 sold</span>
                                 </div>
                                 <div class="event-detail">
-                                    <i class="fas fa-dollar-sign"></i>
+                                    <i class="fas fa-coins"></i>
                                     <span>Rs. 104,650 revenue</span>
                                 </div>
                             </div>
@@ -417,7 +436,7 @@
                                     <span>75/150 sold</span>
                                 </div>
                                 <div class="event-detail">
-                                    <i class="fas fa-dollar-sign"></i>
+                                    <i class="fas fa-coins"></i>
                                     <span>Rs. 2,625 revenue</span>
                                 </div>
                             </div>
@@ -744,6 +763,13 @@
         </div>
     </div>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- AOS Animation -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Page Transitions -->
+    <script src="../js/page-transitions.js"></script>
+    <!-- Custom Scripts -->
     <script src="../js/organizer-dashboard.js"></script>
 </body>
 </html>

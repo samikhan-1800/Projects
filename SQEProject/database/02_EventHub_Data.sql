@@ -19,7 +19,7 @@ INSERT INTO [System].[Settings] ([Category], [Key], [Value], [DataType], [Descri
 ('General', 'SiteUrl', 'https://eventhub.com', 'String', 'Base URL of the platform', 1),
 ('General', 'SupportEmail', 'support@eventhub.com', 'String', 'Support email address', 1),
 ('General', 'DefaultTimezone', 'UTC', 'String', 'Default timezone for events', 1),
-('General', 'DefaultCurrency', 'USD', 'String', 'Default currency for transactions', 1),
+('General', 'DefaultCurrency', 'PKR', 'String', 'Default currency for transactions', 1),
 ('General', 'MaxUploadSize', '10485760', 'Number', 'Maximum file upload size in bytes (10MB)', 0),
 ('General', 'AllowRegistrations', 'true', 'Boolean', 'Allow new user registrations', 0),
 ('General', 'RequireEmailVerification', 'true', 'Boolean', 'Require email verification for new users', 0),
