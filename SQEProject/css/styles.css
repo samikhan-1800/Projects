@@ -1482,6 +1482,16 @@ p {
     background: var(--color-bg);
 }
 
+.table tr.hover-row {
+    transition: all 0.2s ease;
+}
+
+.table tr.hover-row:hover {
+    background: #f0f4ff !important;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
 /* Modals */
 .modal {
     display: none;

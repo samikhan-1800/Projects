@@ -433,6 +433,11 @@ function showSection(sectionName) {
     
     currentSection = sectionName;
     
+    // Stop contact polling when switching sections
+    if (sectionName !== 'contacts') {
+        stopContactsPolling();
+    }
+    
     // Load section-specific data
     switch(sectionName) {
         case 'dashboard':
@@ -1964,6 +1969,7 @@ window.refreshDashboard = refreshDashboard;
 // ===========================
 
 let allContacts = [];
+let contactsPollingInterval = null;
 
 async function loadContacts() {
     try {
@@ -1978,10 +1984,56 @@ async function loadContacts() {
         
         // Render table
         renderContactsTable();
+        
+        // Start auto-refresh polling (every 10 seconds)
+        startContactsPolling();
     } catch (error) {
         console.error('Failed to load contacts:', error);
         document.getElementById('contactsTableBody').innerHTML = 
             '<tr><td colspan="7" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load contacts</td></tr>';
+    }
+}
+
+function startContactsPolling() {
+    // Clear any existing interval
+    if (contactsPollingInterval) {
+        clearInterval(contactsPollingInterval);
+    }
+    
+    // Poll every 10 seconds for new messages
+    contactsPollingInterval = setInterval(async () => {
+        try {
+            const status = document.getElementById('contactStatusFilter')?.value || '';
+            const queryParam = status ? `?status=${status}` : '';
+            
+            const data = await apiRequest(`/contacts${queryParam}`);
+            const newContacts = data.contacts || [];
+            
+            // Check if there are new messages
+            const hasNewMessages = newContacts.length > allContacts.length;
+            
+            allContacts = newContacts;
+            
+            // Update stats
+            await loadContactStats();
+            
+            // Render table
+            renderContactsTable();
+            
+            // Show notification if new messages arrived
+            if (hasNewMessages) {
+                showAlert('New contact message received!', 'info');
+            }
+        } catch (error) {
+            console.error('Polling failed:', error);
+        }
+    }, 10000); // 10 seconds
+}
+
+function stopContactsPolling() {
+    if (contactsPollingInterval) {
+        clearInterval(contactsPollingInterval);
+        contactsPollingInterval = null;
     }
 }
 
@@ -2002,7 +2054,7 @@ function renderContactsTable() {
     const tbody = document.getElementById('contactsTableBody');
     
     if (!allContacts || allContacts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No contact messages found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;"><i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: 0.5;"></i>No contact messages found</td></tr>';
         return;
     }
     
@@ -2019,29 +2071,32 @@ function renderContactsTable() {
         };
         
         const statusColor = statusColors[contact.status] || 'secondary';
-        const messagePreview = (contact.message || '').substring(0, 50) + '...';
+        const messagePreview = (contact.message || '').substring(0, 60);
+        const isNew = contact.status === 'New';
         
         return `
-            <tr onclick="viewContactDetails(${contact.contactId})" style="cursor: pointer;">
-                <td><strong>${escapeHtml(contact.name)}</strong></td>
-                <td>${escapeHtml(contact.email)}</td>
+            <tr onclick="viewContactDetails(${contact.contactId})" style="cursor: pointer; ${isNew ? 'background: #f8f9ff;' : ''}" class="hover-row">
+                <td><strong style="${isNew ? 'color: #667eea;' : ''}">${escapeHtml(contact.name)}</strong></td>
+                <td style="font-size: 0.9em;">${escapeHtml(contact.email)}</td>
                 <td>
-                    <span class="badge badge-${getSubjectColor(contact.subject)}">
+                    <span class="badge badge-${getSubjectColor(contact.subject)}" style="font-size: 0.85em;">
                         ${formatSubject(contact.subject)}
                     </span>
                 </td>
-                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    ${escapeHtml(messagePreview)}
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; font-size: 0.9em;">
+                    ${escapeHtml(messagePreview)}${messagePreview.length >= 60 ? '...' : ''}
                 </td>
-                <td>${date}</td>
+                <td style="font-size: 0.85em; color: #888;">${date}</td>
                 <td>
-                    <span class="badge badge-${statusColor}">${contact.status}</span>
+                    <span class="badge badge-${statusColor}" style="font-size: 0.85em; min-width: 70px; display: inline-block;">
+                        ${isNew ? '<i class="fas fa-circle" style="font-size: 0.5em; margin-right: 4px;"></i>' : ''}${contact.status}
+                    </span>
                 </td>
-                <td onclick="event.stopPropagation();">
-                    <button class="btn btn-small btn-outline" onclick="viewContactDetails(${contact.contactId})">
-                        <i class="fas fa-eye"></i> View
+                <td onclick="event.stopPropagation();" style="white-space: nowrap;">
+                    <button class="btn btn-small btn-outline" onclick="viewContactDetails(${contact.contactId})" title="View Details">
+                        <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-small btn-danger" onclick="deleteContact(${contact.contactId})">
+                    <button class="btn btn-small btn-danger" onclick="deleteContact(${contact.contactId})" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>

@@ -301,9 +301,42 @@
     <script src="../js/utils.js"></script>
     <script src="../js/main.js"></script>
     <script>
+        // Check if user is admin and redirect them
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                try {
+                    const user = JSON.parse(currentUser);
+                    if (user.userType === 'Admin') {
+                        showAlert('Admins cannot submit contact forms. You can view all messages in your admin dashboard.', 'info');
+                        setTimeout(() => {
+                            window.location.href = 'admin-dashboard.html#contacts';
+                        }, 2000);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                }
+            }
+        });
+        
         // Contact form submission
         document.getElementById('contactForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            // Double-check admin status
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                try {
+                    const user = JSON.parse(currentUser);
+                    if (user.userType === 'Admin') {
+                        showAlert('Admins cannot submit contact forms.', 'warning');
+                        return;
+                    }
+                } catch (e) {
+                    // Continue if parse fails
+                }
+            }
             
             // Clear previous errors
             document.querySelectorAll('.form-error').forEach(el => el.textContent = '');
