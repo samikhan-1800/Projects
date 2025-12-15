@@ -1083,20 +1083,7 @@ async function handleFormSubmission(formType, form) {
                 }
                 break;
                 
-            case 'contactForm':
-                try {
-                    await apiRequest('/contacts/submit', {
-                        method: 'POST',
-                        body: JSON.stringify(data)
-                    });
-                    
-                    showAlert('Thank you for your message! We will get back to you soon.', 'success');
-                    form.reset();
-                } catch (error) {
-                    console.error('Contact form submission failed:', error);
-                    // Error already shown by apiRequest
-                }
-                break;
+            // contactForm is handled in contact.html page itself
                 
             case 'createEventForm':
                 // Demo mode - this is handled in organizer dashboard

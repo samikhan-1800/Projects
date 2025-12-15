@@ -644,7 +644,8 @@ router.get('/reports/top-organizers', authenticateToken, requireRole('Admin'), a
                 ISNULL(SUM(b.TotalPrice), 0) as totalRevenue,
                 COUNT(DISTINCT b.BookingId) as totalBookings
             FROM [Users].[Users] u
-            INNER JOIN [Events].[Events] e ON u.UserId = e.OrganizerId
+            INNER JOIN [Users].[Organizers] o ON u.UserId = o.UserId
+            INNER JOIN [Events].[Events] e ON o.OrganizerId = e.OrganizerId
             LEFT JOIN [Events].[Bookings] b ON e.EventId = b.EventId AND b.PaymentStatus = 'Completed'
             WHERE u.Role = 'Organizer' AND u.Status = 'Active'
             GROUP BY u.UserId, u.FirstName, u.LastName, u.Email
@@ -657,6 +658,183 @@ router.get('/reports/top-organizers', authenticateToken, requireRole('Admin'), a
         console.error('Failed to fetch top organizers:', error);
         res.status(500).json({
             error: 'Failed to fetch top organizers'
+        });
+    }
+});
+
+// Get recent activity feed for admin dashboard
+router.get('/reports/recent-activity', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await database.query(`
+            SELECT TOP 15 * FROM (
+                -- New user registrations
+                SELECT 
+                    u.UserId as id,
+                    'user_registered' as type,
+                    'New user registered' as description,
+                    u.FirstName + ' ' + u.LastName as actorName,
+                    u.Role as actorRole,
+                    u.CreatedAt as timestamp
+                FROM [Users].[Users] u
+                WHERE u.CreatedAt >= DATEADD(day, -7, GETDATE())
+                
+                UNION ALL
+                
+                -- New events created
+                SELECT 
+                    e.EventId as id,
+                    'event_created' as type,
+                    'New event created: ' + e.Title as description,
+                    u.FirstName + ' ' + u.LastName as actorName,
+                    'Organizer' as actorRole,
+                    e.CreatedAt as timestamp
+                FROM [Events].[Events] e
+                INNER JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
+                INNER JOIN [Users].[Users] u ON o.UserId = u.UserId
+                WHERE e.CreatedAt >= DATEADD(day, -7, GETDATE())
+                
+                UNION ALL
+                
+                -- New bookings
+                SELECT 
+                    b.BookingId as id,
+                    'booking_created' as type,
+                    'New booking for: ' + e.Title as description,
+                    u.FirstName + ' ' + u.LastName as actorName,
+                    'User' as actorRole,
+                    b.CreatedAt as timestamp
+                FROM [Events].[Bookings] b
+                INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+                INNER JOIN [Users].[Users] u ON b.UserId = u.UserId
+                WHERE b.CreatedAt >= DATEADD(day, -7, GETDATE())
+                
+                UNION ALL
+                
+                -- Payment confirmations
+                SELECT 
+                    b.BookingId as id,
+                    'payment_confirmed' as type,
+                    'Payment confirmed for: ' + e.Title as description,
+                    u.FirstName + ' ' + u.LastName as actorName,
+                    'User' as actorRole,
+                    b.PaymentConfirmedAt as timestamp
+                FROM [Events].[Bookings] b
+                INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+                INNER JOIN [Users].[Users] u ON b.UserId = u.UserId
+                WHERE b.PaymentConfirmedAt IS NOT NULL 
+                    AND b.PaymentConfirmedAt >= DATEADD(day, -7, GETDATE())
+            ) AS RecentActivity
+            ORDER BY timestamp DESC
+        `);
+
+        res.json(result.recordset);
+    } catch (error) {
+        console.error('Failed to fetch recent activity:', error);
+        res.status(500).json({
+            error: 'Failed to fetch recent activity'
+        });
+    }
+});
+
+// Get pending actions (events awaiting approval, payment confirmations, etc.)
+router.get('/reports/pending-actions', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const result = await database.query(`
+            SELECT TOP 20 * FROM (
+                -- Pending event approvals
+                SELECT 
+                    e.EventId as id,
+                    'event_approval' as type,
+                    'Event Approval Required' as actionType,
+                    e.Title as description,
+                    u.FirstName + ' ' + u.LastName as submittedBy,
+                    u.Email as submitterEmail,
+                    e.CreatedAt as date,
+                    e.Status as status
+                FROM [Events].[Events] e
+                INNER JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
+                INNER JOIN [Users].[Users] u ON o.UserId = u.UserId
+                WHERE e.Status = 'Pending'
+                
+                UNION ALL
+                
+                -- Pending payment verifications
+                SELECT 
+                    b.BookingId as id,
+                    'payment_verification' as type,
+                    'Payment Verification' as actionType,
+                    'Payment for: ' + e.Title as description,
+                    u.FirstName + ' ' + u.LastName as submittedBy,
+                    u.Email as submitterEmail,
+                    b.UpdatedAt as date,
+                    b.PaymentStatus as status
+                FROM [Events].[Bookings] b
+                INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+                INNER JOIN [Users].[Users] u ON b.UserId = u.UserId
+                WHERE b.PaymentReceiptUrl IS NOT NULL 
+                    AND b.PaymentStatus = 'Pending'
+                    AND b.PaymentConfirmedAt IS NULL
+            ) AS PendingActions
+            ORDER BY date DESC
+        `);
+
+        res.json(result.recordset);
+    } catch (error) {
+        console.error('Failed to fetch pending actions:', error);
+        res.status(500).json({
+            error: 'Failed to fetch pending actions'
+        });
+    }
+});
+
+// Get booking details for admin (with payment info)
+router.get('/bookings/:id', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await database.query(`
+            SELECT 
+                b.BookingId,
+                b.BookingReference,
+                b.Quantity,
+                b.UnitPrice,
+                b.TotalPrice,
+                b.PlatformFee,
+                0 as ProcessingFee,
+                0 as TaxAmount,
+                b.DiscountAmount,
+                b.FinalAmount,
+                b.Currency,
+                b.Status,
+                b.PaymentStatus,
+                b.AttendeeInfo,
+                b.PaymentReceiptUrl,
+                b.PaymentConfirmedAt,
+                b.CreatedAt,
+                b.UpdatedAt,
+                e.EventId,
+                e.Title as EventTitle,
+                e.StartDate as EventStartTime,
+                e.VenueName,
+                e.VenueAddress,
+                t.Name as TicketType
+            FROM [Events].[Bookings] b
+            INNER JOIN [Events].[Events] e ON b.EventId = e.EventId
+            LEFT JOIN [Events].[EventTickets] t ON b.TicketId = t.TicketId
+            WHERE b.BookingId = @bookingId
+        `, { bookingId: id });
+
+        if (result.recordset.length === 0) {
+            return res.status(404).json({
+                error: 'Booking not found'
+            });
+        }
+
+        res.json(result.recordset[0]);
+    } catch (error) {
+        console.error('Failed to fetch booking details:', error);
+        res.status(500).json({
+            error: 'Failed to fetch booking details'
         });
     }
 });
@@ -697,6 +875,81 @@ router.post('/events/bulk-approve', authenticateToken, requireRole('Admin'), asy
         console.error('Failed to bulk approve events:', error);
         res.status(500).json({
             error: 'Failed to bulk approve events'
+        });
+    }
+});
+
+// Export events to CSV
+router.get('/export/events', authenticateToken, requireRole('Admin'), async (req, res) => {
+    try {
+        const events = await database.query(`
+            SELECT 
+                e.EventId,
+                e.Title,
+                e.Description,
+                e.StartDate,
+                e.EndDate,
+                e.VenueName,
+                e.VenueCity,
+                e.Status,
+                e.Capacity,
+                e.BookingCount,
+                e.Price,
+                e.Currency,
+                e.IsFree,
+                e.TotalRevenue,
+                c.Name as CategoryName,
+                u.FirstName + ' ' + u.LastName as OrganizerName,
+                o.OrganizationName,
+                e.CreatedAt
+            FROM [Events].[Events] e
+            LEFT JOIN [Events].[Categories] c ON e.CategoryId = c.CategoryId
+            LEFT JOIN [Users].[Organizers] o ON e.OrganizerId = o.OrganizerId
+            LEFT JOIN [Users].[Users] u ON o.UserId = u.UserId
+            ORDER BY e.CreatedAt DESC
+        `);
+
+        // Create CSV content
+        const headers = [
+            'Event ID', 'Title', 'Description', 'Start Date', 'End Date',
+            'Venue', 'City', 'Status', 'Capacity', 'Bookings', 'Price',
+            'Currency', 'Free', 'Revenue', 'Category', 'Organizer',
+            'Organization', 'Created At'
+        ];
+
+        let csv = headers.join(',') + '\n';
+
+        events.recordset.forEach(event => {
+            const row = [
+                event.EventId,
+                `"${(event.Title || '').replace(/"/g, '""')}"`,
+                `"${(event.Description || '').replace(/"/g, '""').substring(0, 100)}"`,
+                new Date(event.StartDate).toISOString(),
+                event.EndDate ? new Date(event.EndDate).toISOString() : '',
+                `"${(event.VenueName || '').replace(/"/g, '""')}"`,
+                event.VenueCity || '',
+                event.Status,
+                event.Capacity || 0,
+                event.BookingCount || 0,
+                event.Price || 0,
+                event.Currency || 'PKR',
+                event.IsFree ? 'Yes' : 'No',
+                event.TotalRevenue || 0,
+                event.CategoryName || '',
+                event.OrganizerName || '',
+                event.OrganizationName || '',
+                new Date(event.CreatedAt).toISOString()
+            ];
+            csv += row.join(',') + '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=events-export-${new Date().toISOString().split('T')[0]}.csv`);
+        res.send(csv);
+    } catch (error) {
+        console.error('Failed to export events:', error);
+        res.status(500).json({
+            error: 'Failed to export events'
         });
     }
 });

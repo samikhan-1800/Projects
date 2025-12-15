@@ -26,11 +26,37 @@ const registerSchema = Joi.object({
 // Register endpoint
 router.post('/register', async (req, res) => {
     try {
-        const { error, value } = registerSchema.validate(req.body);
+        const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
         if (error) {
+            // Format validation errors for better user experience
+            const validationErrors = error.details.map(detail => {
+                let field = detail.path[0];
+                let message = detail.message;
+                
+                // Custom error messages
+                if (field === 'email') {
+                    message = 'Please enter a valid email address (e.g., user@example.com)';
+                } else if (field === 'password') {
+                    if (detail.type === 'string.min') {
+                        message = 'Password must be at least 6 characters long';
+                    } else {
+                        message = 'Password is required';
+                    }
+                } else if (field === 'firstName' || field === 'lastName') {
+                    if (detail.type === 'string.min') {
+                        message = `${field === 'firstName' ? 'First' : 'Last'} name must be at least 2 characters`;
+                    } else if (detail.type === 'string.max') {
+                        message = `${field === 'firstName' ? 'First' : 'Last'} name must not exceed 50 characters`;
+                    }
+                }
+                
+                return { field, message };
+            });
+            
             return res.status(400).json({
                 error: 'Validation failed',
-                details: error.details[0].message
+                details: validationErrors[0].message,
+                fields: validationErrors
             });
         }
 

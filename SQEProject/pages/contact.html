@@ -126,7 +126,7 @@
                                 </div>
                                 <div>
                                     <h4>Address</h4>
-                                    <p>123 Event Street<br>Tech City, TC 12345<br>United States</p>
+                                    <p>123 Event Street<br>Tech City, TC 12345<br>Wah Cantt</p>
                                 </div>
                             </div>
                         </div>
@@ -138,7 +138,7 @@
                                 </div>
                                 <div>
                                     <h4>Phone</h4>
-                                    <p>+1 (555) 123-4567<br>Mon-Fri 9AM-6PM EST</p>
+                                    <p>03435158758<br>Mon-Fri 9AM-6PM EST</p>
                                 </div>
                             </div>
                         </div>
@@ -321,8 +321,14 @@
         });
         
         // Contact form submission
+        let isSubmitting = false;
         document.getElementById('contactForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            // Prevent duplicate submissions
+            if (isSubmitting) {
+                return;
+            }
             
             // Double-check admin status
             const currentUser = localStorage.getItem('currentUser');
@@ -378,7 +384,8 @@
             
             if (hasError) return;
             
-            // Disable submit button
+            // Disable submit button and set flag
+            isSubmitting = true;
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
             submitBtn.disabled = true;
@@ -407,6 +414,7 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
+                isSubmitting = false;
             }
         });
         

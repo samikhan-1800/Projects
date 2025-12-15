@@ -58,13 +58,14 @@
                 <form id="loginForm" novalidate>
                     <div class="form-group">
                         <label for="email" class="form-label">Email Address</label>
-                        <input type="email" id="email" name="email" class="form-control" data-label="Email" required>
+                        <input type="email" id="email" name="email" class="form-control" data-label="Email" required pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$">
                         <div class="form-error"></div>
+                        <small class="text-muted">Enter your registered email address</small>
                     </div>
                     
                     <div class="form-group">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" id="password" name="password" class="form-control" data-label="Password" required>
+                        <input type="password" id="password" name="password" class="form-control" data-label="Password" required minlength="6">
                         <div class="form-error"></div>
                     </div>
                     
@@ -97,7 +98,7 @@
                     </div>
                 </div>
                 
-                <div class="text-center mt-4">
+                <!-- <div class="text-center mt-4">
                     <p class="text-muted">Test the system with demo accounts:</p>
                     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                         <button class="btn btn-small btn-secondary" onclick="fillDemoLogin('user')">
@@ -113,7 +114,7 @@
                     <small class="text-muted" style="display: block; margin-top: 10px;">
                         Click a button to fill credentials, then click "Sign In"
                     </small>
-                </div>
+                </div> -->
             </div>
         </div>
     </section>
@@ -263,5 +264,9 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <!-- Page Transitions -->
     <script src="../js/page-transitions.js"></script>
+    <!-- Custom Scripts -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/form-validation.js"></script>
+    <script src="../js/main.js"></script>
 </body>
 </html>

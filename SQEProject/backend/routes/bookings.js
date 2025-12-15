@@ -252,6 +252,9 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/my', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
+        
+        console.log('=== USER BOOKINGS REQUEST ===');
+        console.log('UserId:', userId);
 
         const result = await database.query(`
             SELECT 
@@ -284,6 +287,18 @@ router.get('/my', authenticateToken, async (req, res) => {
             WHERE b.UserId = @userId
             ORDER BY b.CreatedAt DESC
         `, { userId });
+
+        console.log(`Found ${result.recordset.length} bookings for user`);
+        if (result.recordset.length > 0) {
+            result.recordset.forEach((b, idx) => {
+                if (b.transactionId || b.paymentReceiptUrl) {
+                    console.log(`  [${idx}] Booking ${b.bookingId}:`);
+                    console.log(`      TransactionId: ${b.transactionId || 'NULL'}`);
+                    console.log(`      PaymentStatus: ${b.paymentStatus}`);
+                    console.log(`      Has Receipt: ${!!b.paymentReceiptUrl}`);
+                }
+            });
+        }
 
         const bookings = result.recordset.map(booking => ({
             ...booking,
@@ -366,28 +381,54 @@ router.put('/:id', authenticateToken, async (req, res) => {
         const userId = req.user.userId;
         const { transactionId, paymentReceiptUrl, paymentStatus } = req.body;
 
-        console.log('Payment upload attempt:', { bookingId, userId, transactionId });
+        console.log('=== PAYMENT UPLOAD REQUEST ===');
+        console.log('Booking ID:', bookingId);
+        console.log('User ID:', userId);
+        console.log('Transaction ID:', transactionId);
+        console.log('Has Receipt:', !!paymentReceiptUrl);
+        console.log('Receipt length:', paymentReceiptUrl ? paymentReceiptUrl.length : 0);
+        console.log('Payment Status:', paymentStatus);
 
         // Verify user owns this booking
         const checkResult = await database.query(`
-            SELECT BookingId, UserId FROM [Events].[Bookings]
+            SELECT BookingId, UserId, Status, PaymentStatus FROM [Events].[Bookings]
             WHERE BookingId = @bookingId
         `, { bookingId });
 
         console.log('Booking check result:', checkResult.recordset);
 
         if (checkResult.recordset.length === 0) {
-            console.log('Booking not found:', bookingId);
+            console.log('ERROR: Booking not found:', bookingId);
             return res.status(404).json({ error: 'Booking not found' });
         }
 
         const booking = checkResult.recordset[0];
         if (booking.UserId !== userId) {
-            console.log('User mismatch:', { bookingUserId: booking.UserId, requestUserId: userId });
+            console.log('ERROR: User mismatch. Booking User:', booking.UserId, 'Request User:', userId);
             return res.status(403).json({ error: 'Unauthorized to update this booking' });
         }
 
-        await database.query(`
+        const currentPaymentStatus = (booking.PaymentStatus || '').toString().trim().toLowerCase();
+        const userType = (req.user.userType || '').toString();
+
+        // Prevent users from modifying payments after confirmation
+        if ((transactionId || paymentReceiptUrl) && currentPaymentStatus === 'completed') {
+            return res.status(400).json({ error: 'Payment is already confirmed for this booking' });
+        }
+
+        // Users are only allowed to submit proof; they cannot set final payment states
+        let safePaymentStatus = paymentStatus;
+        if (userType === 'User') {
+            if (paymentReceiptUrl || transactionId) {
+                safePaymentStatus = 'Pending';
+            } else {
+                safePaymentStatus = booking.PaymentStatus || 'Pending';
+            }
+        }
+
+        console.log('Updating booking with payment proof...');
+        
+        const updateResult = await database.query(`
             UPDATE [Events].[Bookings]
             SET TransactionId = @transactionId,
                 PaymentReceiptUrl = @paymentReceiptUrl,
@@ -398,13 +439,48 @@ router.put('/:id', authenticateToken, async (req, res) => {
             bookingId,
             transactionId: transactionId || null,
             paymentReceiptUrl: paymentReceiptUrl || null,
-            paymentStatus: paymentStatus || 'Pending'
+            paymentStatus: safePaymentStatus || 'Pending'
         });
 
-        res.json({ message: 'Payment proof uploaded successfully' });
+        console.log('Update result - rows affected:', updateResult.rowsAffected);
+
+        // Keep transaction ledger in sync (manual payment proof)
+        try {
+            const txUpdate = await database.query(`
+                UPDATE [Payments].[Transactions]
+                SET Status = 'Pending',
+                    PaymentGateway = COALESCE(NULLIF(PaymentGateway, ''), 'Manual'),
+                    GatewayTransactionId = @gatewayTransactionId,
+                    ProcessedAt = NULL,
+                    UpdatedAt = GETUTCDATE()
+                WHERE BookingId = @bookingId AND Type = 'Payment'
+            `, {
+                bookingId,
+                gatewayTransactionId: (transactionId || '').toString().trim() || null
+            });
+
+            const affected = Array.isArray(txUpdate.rowsAffected) ? txUpdate.rowsAffected[0] : 0;
+            console.log('Transaction sync (Pending) rows affected:', affected);
+        } catch (txError) {
+            console.error('Transaction sync failed (upload):', txError);
+        }
+
+        // Verify the update
+        const verifyResult = await database.query(`
+            SELECT TransactionId, PaymentReceiptUrl, PaymentStatus 
+            FROM [Events].[Bookings]
+            WHERE BookingId = @bookingId
+        `, { bookingId });
+
+        console.log('Verification after update:', verifyResult.recordset[0]);
+
+        res.json({ 
+            message: 'Payment proof uploaded successfully',
+            booking: verifyResult.recordset[0]
+        });
     } catch (error) {
-        console.error('Failed to update booking:', error);
-        res.status(500).json({ error: 'Failed to update booking' });
+        console.error('ERROR in payment upload:', error);
+        res.status(500).json({ error: 'Failed to update booking', details: error.message });
     }
 });
 
@@ -494,25 +570,37 @@ router.get('/organizer/attendees', authenticateToken, async (req, res) => {
 
         console.log(`Found ${result.recordset.length} attendees`);
         if (result.recordset.length > 0) {
-            console.log('Sample attendee:', {
-                bookingId: result.recordset[0].bookingId,
-                transactionId: result.recordset[0].transactionId,
-                paymentStatus: result.recordset[0].paymentStatus,
-                hasReceipt: !!result.recordset[0].paymentReceiptUrl
+            console.log('First 3 attendees with payment info:');
+            result.recordset.slice(0, 3).forEach((att, idx) => {
+                console.log(`  [${idx}] BookingId: ${att.bookingId}`);
+                console.log(`      TransactionId: ${att.transactionId || 'NULL'}`);
+                console.log(`      PaymentStatus: ${att.paymentStatus}`);
+                console.log(`      Has Receipt: ${!!att.paymentReceiptUrl}`);
+                console.log(`      Receipt Length: ${att.paymentReceiptUrl ? att.paymentReceiptUrl.length : 0} chars`);
             });
         }
 
-        const bookings = result.recordset.map(booking => ({
-            ...booking,
-            userName: `${booking.userFirstName || ''} ${booking.userLastName || ''}`.trim() || 'Guest',
-            attendeeInfo: booking.attendeeInfo ? JSON.parse(booking.attendeeInfo) : null
-        }));
+        const bookings = result.recordset.map(booking => {
+            const mapped = {
+                ...booking,
+                userName: `${booking.userFirstName || ''} ${booking.userLastName || ''}`.trim() || 'Guest',
+                attendeeInfo: booking.attendeeInfo ? JSON.parse(booking.attendeeInfo) : null
+            };
+            
+            // Log if receipt exists
+            if (booking.paymentReceiptUrl) {
+                console.log(`Booking ${booking.bookingId} has receipt (${booking.paymentReceiptUrl.length} chars)`);
+            }
+            
+            return mapped;
+        });
 
         // Set no-cache headers to prevent stale data
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         res.set('Pragma', 'no-cache');
         res.set('Expires', '0');
         
+        console.log(`Returning ${bookings.length} bookings to organizer`);
         res.json(bookings);
     } catch (error) {
         console.error('Failed to fetch organizer attendees:', error);
@@ -649,6 +737,21 @@ router.put('/:id/confirm-payment', authenticateToken, async (req, res) => {
             WHERE BookingId = @bookingId
         `, { bookingId, userId, notes: notes || null });
 
+        // Keep transaction ledger in sync
+        await database.query(`
+            UPDATE t
+            SET t.Status = 'Completed',
+                t.PaymentGateway = COALESCE(NULLIF(t.PaymentGateway, ''), 'Manual'),
+                t.GatewayTransactionId = COALESCE(NULLIF(t.GatewayTransactionId, ''), b.TransactionId),
+                t.ProcessedAt = GETUTCDATE(),
+                t.UpdatedAt = GETUTCDATE(),
+                t.GatewayResponse = NULL,
+                t.FailureReason = NULL
+            FROM [Payments].[Transactions] t
+            LEFT JOIN [Events].[Bookings] b ON t.BookingId = b.BookingId
+            WHERE t.BookingId = @bookingId AND t.Type = 'Payment'
+        `, { bookingId });
+
         res.json({ message: 'Payment confirmed successfully' });
     } catch (error) {
         console.error('Failed to confirm payment:', error);
@@ -687,6 +790,16 @@ router.put('/:id/reject-payment', authenticateToken, async (req, res) => {
                 PaymentNotes = @notes,
                 UpdatedAt = GETUTCDATE()
             WHERE BookingId = @bookingId
+        `, { bookingId, notes });
+
+        // Keep transaction ledger in sync
+        await database.query(`
+            UPDATE [Payments].[Transactions]
+            SET Status = 'Failed',
+                PaymentGateway = COALESCE(NULLIF(PaymentGateway, ''), 'Manual'),
+                FailureReason = @notes,
+                UpdatedAt = GETUTCDATE()
+            WHERE BookingId = @bookingId AND Type = 'Payment'
         `, { bookingId, notes });
 
         res.json({ message: 'Payment rejected', notes });
