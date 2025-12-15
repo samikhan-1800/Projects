@@ -464,6 +464,12 @@ async function loadDashboardOverview() {
         // Fetch dashboard stats which updates all the UI elements
         await fetchDashboardStats();
         
+        // Load recent activity feed
+        await loadRecentActivity();
+        
+        // Load pending actions
+        await loadPendingActions();
+        
         // Initialize charts if Chart.js is available
         if (typeof Chart !== 'undefined') {
             initializeBookingsChart();
@@ -729,23 +735,366 @@ async function loadTopOrganizers() {
             return;
         }
 
-        container.innerHTML = data.map((organizer, index) => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #e9ecef;">
-                <div>
-                    <div style="font-weight: 500;">#${index + 1} ${organizer.name}</div>
-                    <small class="text-muted">${organizer.eventCount} events · ${organizer.totalBookings} bookings</small>
+        // Badge configurations for top positions
+        const badges = [
+            { icon: '👑', text: 'Top Performer', color: '#FFD700', bgColor: '#FFF9E6', borderColor: '#FFD700' },
+            { icon: '🥈', text: '2nd Place', color: '#C0C0C0', bgColor: '#F5F5F5', borderColor: '#C0C0C0' },
+            { icon: '🥉', text: '3rd Place', color: '#CD7F32', bgColor: '#FFF5E6', borderColor: '#CD7F32' },
+            { icon: '⭐', text: 'Rising Star', color: '#6f42c1', bgColor: '#F3E8FF', borderColor: '#6f42c1' },
+            { icon: '💎', text: 'Elite', color: '#0ea5a4', bgColor: '#e8f5f5', borderColor: '#0ea5a4' }
+        ];
+
+        container.innerHTML = data.map((organizer, index) => {
+            const badge = badges[index] || badges[4];
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #e9ecef; border-left: 4px solid ${badge.borderColor}; background: ${index === 0 ? '#FFFBF0' : 'white'};">
+                    <div style="display: flex; align-items: center; gap: 15px; flex-grow: 1;">
+                        <div style="font-size: 32px; line-height: 1;">${badge.icon}</div>
+                        <div style="flex-grow: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <span style="font-weight: 600; font-size: 16px;">#${index + 1} ${organizer.name}</span>
+                                <span style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: ${badge.color}; background: ${badge.bgColor}; border: 1px solid ${badge.borderColor};">
+                                    ${badge.text}
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 15px;">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar-event" style="color: ${badge.color};"></i> ${organizer.eventCount} events
+                                </small>
+                                <small class="text-muted">
+                                    <i class="bi bi-ticket-perforated" style="color: ${badge.color};"></i> ${organizer.totalBookings} bookings
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right; padding-left: 15px;">
+                        <div style="font-weight: 700; font-size: 18px; color: #28a745;">Rs. ${organizer.totalRevenue.toLocaleString()}</div>
+                        <small style="color: #6c757d; font-weight: 500;">Total Revenue</small>
+                    </div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-weight: 600; color: #28a745;">Rs. ${organizer.totalRevenue.toLocaleString()}</div>
-                    <small class="text-muted">Total Revenue</small>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     } catch (error) {
         console.error('Failed to load top organizers:', error);
         const container = document.getElementById('topOrganizersContainer');
         if (container) {
             container.innerHTML = '<p class="text-center text-danger">Failed to load organizer data</p>';
+        }
+    }
+}
+
+// Load recent activity feed
+async function loadRecentActivity() {
+    try {
+        const data = await apiRequest('/admin/reports/recent-activity');
+        const container = document.getElementById('recentActivities');
+        
+        if (!container) return;
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted">No recent activity</p>';
+            return;
+        }
+
+        // Activity type icons and colors
+        const activityConfig = {
+            'user_registered': { icon: 'bi-person-plus-fill', color: '#0ea5a4', bgColor: '#e8f5f5' },
+            'event_created': { icon: 'bi-calendar-plus', color: '#6f42c1', bgColor: '#f3e8ff' },
+            'booking_created': { icon: 'bi-ticket-perforated', color: '#0d6efd', bgColor: '#e7f1ff' },
+            'payment_confirmed': { icon: 'bi-currency-dollar', color: '#28a745', bgColor: '#e8f5e9' }
+        };
+
+        container.innerHTML = data.map(activity => {
+            const config = activityConfig[activity.type] || { icon: 'bi-circle-fill', color: '#6c757d', bgColor: '#f8f9fa' };
+            const timeAgo = formatTimestamp(activity.timestamp);
+            
+            // Role badge colors
+            const roleColors = {
+                'Admin': 'danger',
+                'Organizer': 'primary',
+                'User': 'success'
+            };
+            const roleBadge = roleColors[activity.actorRole] || 'secondary';
+
+            return `
+                <div style="display: flex; gap: 15px; padding: 12px 0; border-bottom: 1px solid #e9ecef;">
+                    <div style="flex-shrink: 0;">
+                        <div style="width: 40px; height: 40px; border-radius: 8px; background-color: ${config.bgColor}; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi ${config.icon}" style="color: ${config.color}; font-size: 18px;"></i>
+                        </div>
+                    </div>
+                    <div style="flex-grow: 1; min-width: 0;">
+                        <div style="font-size: 14px; color: #2c3e50; margin-bottom: 4px;">${activity.description}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span class="badge bg-${roleBadge}" style="font-size: 11px;">${activity.actorRole}</span>
+                            <small class="text-muted" style="font-size: 12px;">${activity.actorName}</small>
+                            <small class="text-muted" style="font-size: 12px;">• ${timeAgo}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Failed to load recent activity:', error);
+        const container = document.getElementById('recentActivities');
+        if (container) {
+            container.innerHTML = '<p class="text-center text-danger">Failed to load activity data</p>';
+        }
+    }
+}
+
+// Load pending actions
+async function loadPendingActions() {
+    try {
+        const data = await apiRequest('/admin/reports/pending-actions');
+        const tableBody = document.getElementById('pendingActionsTable');
+        
+        if (!tableBody) return;
+        
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        <i class="bi bi-check-circle" style="font-size: 48px; color: #28a745; display: block; margin: 20px auto;"></i>
+                        <p style="margin: 10px 0;">All caught up! No pending actions.</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tableBody.innerHTML = data.map(action => {
+            const typeConfig = {
+                'event_approval': { 
+                    icon: 'bi-calendar-check', 
+                    color: '#6f42c1', 
+                    badge: 'Event Approval',
+                    badgeClass: 'bg-primary'
+                },
+                'payment_verification': { 
+                    icon: 'bi-cash-coin', 
+                    color: '#28a745', 
+                    badge: 'Payment',
+                    badgeClass: 'bg-success'
+                }
+            };
+            
+            const config = typeConfig[action.type] || { icon: 'bi-info-circle', color: '#6c757d', badge: 'Action', badgeClass: 'bg-secondary' };
+            const date = new Date(action.date);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            return `
+                <tr>
+                    <td>
+                        <span class="badge ${config.badgeClass}">
+                            <i class="bi ${config.icon}"></i> ${config.badge}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-weight: 500;">${action.description}</div>
+                        ${action.submitterEmail ? `<small class="text-muted">${action.submitterEmail}</small>` : ''}
+                    </td>
+                    <td>${action.submittedBy}</td>
+                    <td>
+                        <small>${formattedDate}</small>
+                    </td>
+                    <td>
+                        <span class="badge badge-warning">${action.status}</span>
+                    </td>
+                    <td>
+                        ${action.type === 'event_approval' ? `
+                            <button class="btn btn-sm btn-success" onclick="approveEvent('${action.id}')">
+                                <i class="bi bi-check-lg"></i> Approve
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectEvent('${action.id}')">
+                                <i class="bi bi-x-lg"></i> Reject
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-primary" onclick="viewPaymentDetails('${action.id}')">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        `}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Failed to load pending actions:', error);
+        const tableBody = document.getElementById('pendingActionsTable');
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger">
+                        Failed to load pending actions
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// View payment details for pending payment verification
+async function viewPaymentDetails(bookingId) {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
+        const content = document.getElementById('paymentDetailsContent');
+        
+        // Show loading spinner
+        content.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Fetch booking details
+        const booking = await apiRequest(`/admin/bookings/${bookingId}`);
+        
+        if (!booking) {
+            throw new Error('Booking not found');
+        }
+        
+        const attendee = JSON.parse(booking.AttendeeInfo);
+        const bookingDate = new Date(booking.CreatedAt);
+        
+        content.innerHTML = `
+            <!-- Booking Summary Card -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; color: white; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <h4 style="margin: 0 0 5px 0; font-weight: 600;">${booking.EventTitle}</h4>
+                        <p style="margin: 0; opacity: 0.9;">Booking #${booking.BookingReference}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 28px; font-weight: 700;">Rs. ${booking.FinalAmount.toLocaleString()}</div>
+                        <span class="badge" style="background: rgba(255,255,255,0.3); font-size: 12px;">${booking.PaymentStatus}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event & Attendee Info -->
+            <div class="row mb-3 g-3">
+                <div class="col-lg-6">
+                    <div class="card h-100" style="border-left: 4px solid #667eea;">
+                        <div class="card-body">
+                            <h6 class="mb-3" style="color: #667eea; font-weight: 600;">
+                                <i class="bi bi-calendar-event"></i> Event Details
+                            </h6>
+                            <div style="line-height: 1.8; font-size: 14px;">
+                                <div><strong>Event:</strong> ${booking.EventTitle}</div>
+                                <div><strong>Date:</strong> ${new Date(booking.EventStartTime).toLocaleDateString()}</div>
+                                <div><strong>Time:</strong> ${new Date(booking.EventStartTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
+                                <div><strong>Venue:</strong> ${booking.VenueName || 'N/A'}</div>
+                                <div><strong>Tickets:</strong> ${booking.Quantity}x ${booking.TicketType || 'General'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100" style="border-left: 4px solid #28a745;">
+                        <div class="card-body">
+                            <h6 class="mb-3" style="color: #28a745; font-weight: 600;">
+                                <i class="bi bi-person-circle"></i> Attendee Information
+                            </h6>
+                            <div style="line-height: 1.8; font-size: 14px;">
+                                <div><strong>Name:</strong> ${attendee.name}</div>
+                                <div><strong>Email:</strong> <span style="word-break: break-all;">${attendee.email}</span></div>
+                                <div><strong>Phone:</strong> ${attendee.phone}</div>
+                                <div><strong>Booked:</strong> ${bookingDate.toLocaleDateString()} ${bookingDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Breakdown -->
+            <div class="card mb-3" style="border-left: 4px solid #ffc107;">
+                <div class="card-body">
+                    <h6 class="mb-3" style="color: #ffc107; font-weight: 600;">
+                        <i class="bi bi-cash-stack"></i> Payment Breakdown
+                    </h6>
+                    <table class="table table-sm table-responsive mb-0">
+                        <tbody style="font-size: 14px;">
+                            <tr>
+                                <td>Unit Price (${booking.Quantity} tickets)</td>
+                                <td class="text-end">Rs. ${booking.UnitPrice.toLocaleString()}</td>
+                            </tr>
+                            <tr>
+                                <td>Subtotal</td>
+                                <td class="text-end">Rs. ${booking.TotalPrice.toLocaleString()}</td>
+                            </tr>
+                            ${booking.DiscountAmount > 0 ? `
+                            <tr style="color: #28a745;">
+                                <td>Discount</td>
+                                <td class="text-end">- Rs. ${booking.DiscountAmount.toLocaleString()}</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                                <td>Platform Fee</td>
+                                <td class="text-end">Rs. ${booking.PlatformFee.toLocaleString()}</td>
+                            </tr>
+                            <tr>
+                                <td>Processing Fee</td>
+                                <td class="text-end">Rs. ${booking.ProcessingFee.toLocaleString()}</td>
+                            </tr>
+                            <tr style="font-weight: 600; font-size: 15px; border-top: 2px solid #dee2e6;">
+                                <td>Final Amount</td>
+                                <td class="text-end">Rs. ${booking.FinalAmount.toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payment Receipt -->
+            ${booking.PaymentReceiptUrl ? `
+            <div class="card mb-3" style="border-left: 4px solid #dc3545;">
+                <div class="card-body">
+                    <h6 class="mb-3" style="color: #dc3545; font-weight: 600;">
+                        <i class="bi bi-receipt-cutoff"></i> Payment Receipt
+                    </h6>
+                    <div class="text-center">
+                        <img src="${booking.PaymentReceiptUrl}" 
+                             alt="Payment Receipt" 
+                             style="max-width: 100%; height: auto; max-height: 500px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer;"
+                             onclick="window.open('${booking.PaymentReceiptUrl}', '_blank')">
+                        <p class="text-muted mt-2 mb-0">
+                            <small><i class="bi bi-info-circle"></i> Click image to view full size</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            ` : `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> No payment receipt uploaded yet.
+            </div>
+            `}
+
+            <!-- Action Note -->
+            <div class="alert alert-info mb-0" style="border-left: 4px solid #0dcaf0;">
+                <i class="bi bi-info-circle-fill"></i> 
+                <strong>Note:</strong> This payment is pending verification. The organizer should verify this payment receipt and confirm or reject it from their dashboard.
+            </div>
+
+            <div class="modal-footer" style="border-top: 2px solid #e9ecef; padding: 15px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Close
+                </button>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Failed to load payment details:', error);
+        const content = document.getElementById('paymentDetailsContent');
+        if (content) {
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to load payment details. Please try again.
+                </div>
+            `;
         }
     }
 }
@@ -861,6 +1210,7 @@ async function approveEvent(eventId) {
             method: 'PATCH'
         });
         showAlert('Event approved and published successfully!', 'success');
+        await loadPendingActions(); // Refresh pending actions
         await loadEventsSection(); // Refresh table
     } catch (error) {
         console.error('Failed to approve event:', error);
@@ -880,6 +1230,7 @@ async function rejectEvent(eventId) {
             body: JSON.stringify({ reason })
         });
         showAlert(`Event rejected: ${reason}`, 'warning');
+        await loadPendingActions(); // Refresh pending actions
         await loadEventsSection(); // Refresh table
     } catch (error) {
         console.error('Failed to reject event:', error);

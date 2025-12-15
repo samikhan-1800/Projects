@@ -175,8 +175,8 @@ router.get('/stats/summary', authenticateToken, requireAdmin, async (req, res) =
         const result = await db.query(`
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN status = 'New' THEN 1 ELSE 0 END) as new,
-                SUM(CASE WHEN status = 'Read' THEN 1 ELSE 0 END) as read,
+                SUM(CASE WHEN status = 'New' THEN 1 ELSE 0 END) as [new],
+                SUM(CASE WHEN status = 'Read' THEN 1 ELSE 0 END) as [read],
                 SUM(CASE WHEN status = 'Replied' THEN 1 ELSE 0 END) as replied,
                 SUM(CASE WHEN status = 'Resolved' THEN 1 ELSE 0 END) as resolved
             FROM ContactSubmissions

@@ -1,27 +1,46 @@
 const express = require('express');
 const database = require('../config/database');
+const { authenticateToken, requireOrganizerOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
+const maybeAuthenticateToken = (req, res, next) => {
+    if (req.query.organizerId === 'current') {
+        return authenticateToken(req, res, next);
+    }
+    return next();
+};
+
 // Get all published events (or organizer's events)
-router.get('/', async (req, res) => {
+router.get('/', maybeAuthenticateToken, async (req, res) => {
     try {
         const { category, search, limit = 50, offset = 0, organizerId, status } = req.query;
         
-        // If organizerId is provided, show all events for that organizer (any status)
-        // Otherwise, show only published events
-        let whereClause = organizerId ? "WHERE 1=1" : "WHERE e.Status = 'Published'";
+        // If organizerId is provided, show all events for that organizer (exclude Cancelled)
+        // Otherwise, show only published/approved events to public
+        let whereClause = organizerId ? "WHERE e.Status != 'Cancelled'" : "WHERE e.Status IN ('Published', 'Approved')";
         const params = {};
 
         if (organizerId) {
             // For organizer dashboard - show all their events
             if (organizerId === 'current') {
-                // Get first organizer for demo purposes
-                const orgResult = await database.query(`SELECT TOP 1 OrganizerId FROM [Users].[Organizers]`);
-                if (orgResult.recordset.length > 0) {
-                    whereClause += " AND e.OrganizerId = @organizerId";
-                    params.organizerId = orgResult.recordset[0].OrganizerId;
+                if (!req.user) {
+                    return res.status(401).json({ error: 'Access token required' });
                 }
+                if (!['Organizer', 'Admin'].includes(req.user.userType)) {
+                    return res.status(403).json({ error: 'Organizer access required' });
+                }
+
+                const orgResult = await database.query(`
+                    SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+                `, { userId: req.user.userId });
+
+                if (orgResult.recordset.length === 0) {
+                    return res.json([]);
+                }
+
+                whereClause += " AND e.OrganizerId = @organizerId";
+                params.organizerId = orgResult.recordset[0].OrganizerId;
             } else {
                 whereClause += " AND e.OrganizerId = @organizerId";
                 params.organizerId = organizerId;
@@ -72,6 +91,8 @@ router.get('/', async (req, res) => {
                 e.BookingCount as bookingCount,
                 e.ViewCount as viewCount,
                 e.TotalRevenue as totalRevenue,
+                e.Status as status,
+                e.CategoryId as categoryId,
                 e.CreatedAt as createdAt,
                 c.Name as categoryName,
                 c.Color as categoryColor,
@@ -134,7 +155,7 @@ router.get('/categories', async (req, res) => {
 });
 
 // Get single event by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', maybeAuthenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -198,6 +219,26 @@ router.get('/:id', async (req, res) => {
 
         const event = result.recordset[0];
 
+        // Check if user can view this event based on status
+        const userType = req.user?.userType || req.user?.role;
+        const isAdmin = userType === 'Admin';
+        let isOrganizer = false;
+
+        // Check if user is the organizer of this event
+        if (req.user?.userId && event.organizerId) {
+            const organizerCheck = await database.query(`
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId AND OrganizerId = @organizerId
+            `, { userId: req.user.userId, organizerId: event.organizerId });
+            isOrganizer = organizerCheck.recordset.length > 0;
+        }
+
+        // Only allow Published/Approved events for regular users
+        if (!isAdmin && !isOrganizer && event.status !== 'Published' && event.status !== 'Approved') {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
         // Update view count
         await database.query(`
             UPDATE [Events].[Events]
@@ -247,10 +288,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new event (requires authentication)
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, requireOrganizerOrAdmin, async (req, res) => {
     try {
-        // In production, you'd get organizerId from authenticated user
-        // For now, we'll use a default organizer
         const {
             title,
             categoryId,
@@ -274,7 +313,8 @@ router.post('/', async (req, res) => {
             featuredImageUrl,
             tags,
             requirements,
-            status = 'Pending'
+            status = 'Pending',
+            organizerId: bodyOrganizerId
         } = req.body;
 
         // Validate required fields
@@ -290,16 +330,22 @@ router.post('/', async (req, res) => {
             .replace(/(^-|-$)/g, '');
         const slug = `${baseSlug}-${Date.now()}`;
 
-        // Get organizer ID (using first organizer for demo)
-        const organizerResult = await database.query(`
-            SELECT TOP 1 OrganizerId FROM [Users].[Organizers]
-        `);
-        
-        const organizerId = organizerResult.recordset[0]?.OrganizerId;
+        let organizerId;
+        if (req.user.userType === 'Admin') {
+            organizerId = bodyOrganizerId || null;
+        }
+
+        if (!organizerId) {
+            const organizerResult = await database.query(`
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            `, { userId: req.user.userId });
+
+            organizerId = organizerResult.recordset[0]?.OrganizerId;
+        }
         
         if (!organizerId) {
             return res.status(400).json({
-                error: 'No organizer found'
+                error: 'Organizer profile not found'
             });
         }
 
@@ -414,7 +460,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update event (requires authentication)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, requireOrganizerOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -452,15 +498,34 @@ router.put('/:id', async (req, res) => {
             status
         } = req.body;
 
-        // Check if event exists
-        const checkResult = await database.query(`
-            SELECT EventId FROM [Events].[Events] WHERE EventId = @id
-        `, { id });
+        // Check ownership (organizers) / existence (admins)
+        if (req.user.userType !== 'Admin') {
+            const organizerResult = await database.query(`
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            `, { userId: req.user.userId });
 
-        if (checkResult.recordset.length === 0) {
-            return res.status(404).json({
-                error: 'Event not found'
-            });
+            if (organizerResult.recordset.length === 0) {
+                return res.status(403).json({ error: 'Organizer profile not found' });
+            }
+
+            const organizerId = organizerResult.recordset[0].OrganizerId;
+            const checkResult = await database.query(`
+                SELECT EventId FROM [Events].[Events] WHERE EventId = @id AND OrganizerId = @organizerId
+            `, { id, organizerId });
+
+            if (checkResult.recordset.length === 0) {
+                return res.status(404).json({ error: 'Event not found' });
+            }
+        } else {
+            const checkResult = await database.query(`
+                SELECT EventId FROM [Events].[Events] WHERE EventId = @id
+            `, { id });
+
+            if (checkResult.recordset.length === 0) {
+                return res.status(404).json({
+                    error: 'Event not found'
+                });
+            }
         }
 
         // Build update query dynamically
@@ -594,7 +659,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete event (requires authentication)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, requireOrganizerOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -606,10 +671,26 @@ router.delete('/:id', async (req, res) => {
             });
         }
 
-        // Check if event exists
-        const checkResult = await database.query(`
-            SELECT EventId, Title FROM [Events].[Events] WHERE EventId = @id
-        `, { id });
+        // Check ownership (organizers) / existence (admins)
+        let checkResult;
+        if (req.user.userType !== 'Admin') {
+            const organizerResult = await database.query(`
+                SELECT OrganizerId FROM [Users].[Organizers] WHERE UserId = @userId
+            `, { userId: req.user.userId });
+
+            if (organizerResult.recordset.length === 0) {
+                return res.status(403).json({ error: 'Organizer profile not found' });
+            }
+
+            const organizerId = organizerResult.recordset[0].OrganizerId;
+            checkResult = await database.query(`
+                SELECT EventId, Title FROM [Events].[Events] WHERE EventId = @id AND OrganizerId = @organizerId
+            `, { id, organizerId });
+        } else {
+            checkResult = await database.query(`
+                SELECT EventId, Title FROM [Events].[Events] WHERE EventId = @id
+            `, { id });
+        }
 
         if (checkResult.recordset.length === 0) {
             return res.status(404).json({

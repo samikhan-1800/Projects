@@ -59,33 +59,38 @@
                     <div class="form-row" style="display: flex; gap: 15px;">
                         <div class="form-group" style="flex: 1;">
                             <label for="firstName" class="form-label">First Name</label>
-                            <input type="text" id="firstName" name="firstName" class="form-control" data-label="First Name" required>
+                            <input type="text" id="firstName" name="firstName" class="form-control" data-label="First Name" required minlength="2" maxlength="50" pattern="^[A-Za-z ]+$">
                             <div class="form-error"></div>
+                            <small class="text-muted">Letters only, 2-50 characters</small>
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label for="lastName" class="form-label">Last Name</label>
-                            <input type="text" id="lastName" name="lastName" class="form-control" data-label="Last Name" required>
+                            <input type="text" id="lastName" name="lastName" class="form-control" data-label="Last Name" required minlength="2" maxlength="50" pattern="^[A-Za-z ]+$">
                             <div class="form-error"></div>
+                            <small class="text-muted">Letters only, 2-50 characters</small>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="email" class="form-label">Email Address</label>
-                        <input type="email" id="email" name="email" class="form-control" data-label="Email" required>
+                        <input type="email" id="email" name="email" class="form-control" data-label="Email" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
                         <div class="form-error"></div>
+                        <small class="text-muted">Enter a valid email address (e.g., user@example.com)</small>
                     </div>
                     
                     <div class="form-group">
                         <label for="phone" class="form-label">Phone Number</label>
-                        <input type="tel" id="phone" name="phone" class="form-control" data-label="Phone Number" required>
+                        <input type="tel" id="phone" name="phone" class="form-control" data-label="Phone Number" required pattern="^[0-9]{10,15}$" placeholder="03001234567">
                         <div class="form-error"></div>
+                        <small class="text-muted">Enter 10-15 digit phone number without spaces or dashes</small>
                     </div>
                     
                     <div class="form-group">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" id="password" name="password" class="form-control" data-label="Password" required minlength="6">
+                        <input type="password" id="password" name="password" class="form-control" data-label="Password" required minlength="8" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$">
                         <div class="form-error"></div>
-                        <small class="text-muted">Password must be at least 6 characters long</small>
+                        <div id="passwordStrength" style="margin-top: 5px;"></div>
+                        <small class="text-muted">Password must be at least 8 characters with uppercase, lowercase, and number</small>
                     </div>
                     
                     <div class="form-group">
@@ -100,7 +105,7 @@
                             <option value="">Select an option</option>
                             <option value="attendee">Attend Events</option>
                             <option value="organizer">Organize Events</option>
-                            <option value="both">Both Attend and Organize</option>
+                            <!-- <option value="both">Both Attend and Organize</option> -->
                         </select>
                         <div class="form-error"></div>
                     </div>
@@ -195,6 +200,7 @@
     <script src="../js/page-transitions.js"></script>
     <!-- Custom Scripts -->
     <script src="../js/utils.js"></script>
+    <script src="../js/form-validation.js"></script>
     <script src="../js/main.js"></script>
 </body>
 </html>

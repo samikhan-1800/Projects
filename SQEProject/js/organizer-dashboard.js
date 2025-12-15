@@ -328,7 +328,6 @@ function renderOrganizerEvents() {
                         }
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
                             <button class="btn btn-small btn-outline" onclick="editEvent('${event.eventId}')">Edit</button>
-                            <button class="btn btn-small btn-outline" onclick="duplicateEvent('${event.eventId}')">Duplicate</button>
                             <button class="btn btn-small btn-danger" onclick="deleteEvent('${event.eventId}')">Delete</button>
                         </div>
                     </div>
@@ -695,14 +694,57 @@ function renderAttendees() {
         return;
     }
     
+    console.log('Rendering attendees, sample data:', filteredAttendees[0]);
+    
     tbody.innerHTML = filteredAttendees.map(attendee => {
         const bookingDate = new Date(attendee.createdAt);
         const formattedDate = bookingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const statusBadge = attendee.status === 'Confirmed' ? 'success' : 
                            attendee.status === 'Cancelled' ? 'danger' : 'warning';
-        const paymentBadge = attendee.paymentStatus === 'Completed' ? 'success' : 
-                            attendee.paymentStatus === 'Failed' ? 'danger' : 'warning';
+        const normalizedPaymentStatus = (attendee.paymentStatus || 'Pending').toString().trim();
+        const normalizedPaymentStatusLower = normalizedPaymentStatus.toLowerCase();
+        const hasReceipt = !!attendee.paymentReceiptUrl;
+        const isRejected = normalizedPaymentStatusLower === 'failed';
+        const isConfirmed = !!attendee.paymentConfirmedAt;
+        const needsReview = hasReceipt && !isConfirmed && !isRejected;
+        const paymentBadge = normalizedPaymentStatusLower === 'completed' ? 'success' : 
+                            normalizedPaymentStatusLower === 'failed' ? 'danger' : 'warning';
         const attendeeEmail = attendee.userEmail || attendee.attendeeInfo?.email || 'N/A';
+        
+        // Log for debugging
+        if (attendee.paymentReceiptUrl || attendee.transactionId) {
+            console.log('Attendee with payment info:', {
+                bookingId: attendee.bookingId,
+                transactionId: attendee.transactionId,
+                hasReceipt: !!attendee.paymentReceiptUrl,
+                paymentStatus: attendee.paymentStatus,
+                normalizedPaymentStatus,
+                paymentConfirmedAt: attendee.paymentConfirmedAt || null,
+                needsReview
+            });
+        }
+
+        const paymentNotesHtml = attendee.paymentNotes
+            ? `<br><small style="color: #666;" title="${attendee.paymentNotes}">${attendee.paymentNotes.substring(0, 30)}${attendee.paymentNotes.length > 30 ? '...' : ''}</small>`
+            : '';
+
+        let paymentActionHtml = '';
+        if (needsReview) {
+            paymentActionHtml = `
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-small" style="background: #28a745; color: white;" onclick="confirmPayment('${attendee.bookingId}')"><i class="fas fa-check"></i> Confirm</button>
+                    <button class="btn btn-small" style="background: #dc3545; color: white;" onclick="rejectPayment('${attendee.bookingId}')"><i class="fas fa-times"></i> Reject</button>
+                </div>
+            `;
+        } else if (normalizedPaymentStatusLower === 'pending') {
+            paymentActionHtml = hasReceipt
+                ? '<span class="badge badge-warning">Pending Review</span>'
+                : '<span class="badge badge-warning">Awaiting Receipt</span>';
+        } else if (hasReceipt && !isConfirmed && !isRejected) {
+            paymentActionHtml = '<span class="badge badge-warning">Pending Review</span>';
+        } else {
+            paymentActionHtml = `<span class="badge badge-${paymentBadge}">${normalizedPaymentStatus}</span>${paymentNotesHtml}`;
+        }
         
         return `
             <tr>
@@ -713,23 +755,33 @@ function renderAttendees() {
                 <td>${attendee.quantity || 1}</td>
                 <td>${formattedDate}</td>
                 <td><span class="badge badge-${statusBadge}">${attendee.status || 'Pending'}</span></td>
-                <td>${attendee.transactionId || 'N/A'}</td>
+                <td>${attendee.transactionId ? `<span title="${attendee.transactionId}">${attendee.transactionId.length > 12 ? `${attendee.transactionId.substring(0, 12)}...` : attendee.transactionId}</span>` : '<span style="color: #999;">Not provided</span>'}</td>
                 <td>
                     ${attendee.paymentReceiptUrl ? 
-                        `<button class="btn btn-small btn-outline" onclick="viewReceipt('${attendee.paymentReceiptUrl}', '${attendee.bookingReference}')">View Receipt</button>` : 
+                        `<button class="btn btn-small btn-primary" onclick="viewReceiptByBookingId('${attendee.bookingId}')"><i class="fas fa-file-image"></i> View</button>` : 
                         '<span style="color: #999;">No receipt</span>'}
                 </td>
-                <td>
-                    ${attendee.paymentStatus === 'Pending' ?
-                        `<button class="btn btn-small" style="background: #28a745; color: white;" onclick="confirmPayment('${attendee.bookingId}')">✓ Confirm</button>
-                         <button class="btn btn-small" style="background: #dc3545; color: white; margin-left: 5px;" onclick="rejectPayment('${attendee.bookingId}')">✗ Reject</button>` :
-                        `<span class="badge badge-${paymentBadge}">${attendee.paymentStatus}</span>
-                         ${attendee.paymentNotes ? `<br><small style="color: #666;">${attendee.paymentNotes}</small>` : ''}`
-                    }
+                <td style="min-width: 180px;">
+                    ${paymentActionHtml}
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+function viewReceiptByBookingId(bookingId) {
+    const attendee = allAttendees.find(a => a.bookingId === bookingId);
+    if (!attendee) {
+        showAlert('Receipt not found for this booking', 'warning');
+        return;
+    }
+
+    if (!attendee.paymentReceiptUrl) {
+        showAlert('No receipt uploaded for this booking', 'info');
+        return;
+    }
+
+    viewReceipt(attendee.paymentReceiptUrl, attendee.bookingReference || bookingId);
 }
 
 // Chart instances
