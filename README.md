@@ -135,4 +135,4 @@ Event-Management-System/
 
 ## License
 
-This project is developed for academic purposes as part of a Final Year Project.
+This project is developed for academic purposes as part of a Semester Project Software Quality Engineering.
